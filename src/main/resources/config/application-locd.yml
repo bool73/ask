@@ -1,0 +1,22 @@
+spring:
+    profiles:
+        active: locd
+    cache:
+        type: redis
+    redis:
+        lettuce:
+            pool:
+                max-active: 10
+                max-idle: 10
+                min-idle: 2
+        host: localhost
+        port: 6379
+        password: 
+
+logging:
+    config: classpath:log/logback-locd.xml
+
+domain:
+    front: //ldfront.grape.com
+    image: //ldimage.grape.com
+    uximage: //ldfront.grape.com
