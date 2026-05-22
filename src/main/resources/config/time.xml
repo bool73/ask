@@ -1,0 +1,487 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE tiles-definitions PUBLIC
+	   "-//Apache Software Foundation//DTD Tiles Configuration 3.0//EN"
+	   "http://tiles.apache.org/dtds/tiles-config_3_0.dtd">
+<tiles-definitions>
+	
+	<!-- _______________________________________________________________ -->
+	
+	<!-- ______________________________MOBILE___________________________ -->
+	
+	<!-- _______________________________________________________________ -->
+
+	
+	
+	<!-- 템플릿 Common -->
+	<definition name="commonLayout" template="/WEB-INF/jsp/pub/layout_fm/commonLayout.jsp">
+		<!-- header -->
+		<put-attribute name="pu_script_css"			value="/WEB-INF/jsp/pub/layout_fm/inc/pub_script_css.jsp" />
+		<put-attribute name="pu_script_UI"			value="/WEB-INF/jsp/pub/layout_fm/inc/pub_ui_script.jsp" /><!-- 퍼블 UI js import -->
+		<put-attribute name="pu_script_css_header"	value="/WEB-INF/jsp/pub/layout_fm/inc/pub_script_css_header.jsp" />
+		<put-attribute name="pu_script_css_etc"		value="" /><!-- 각 업무에 필요한 js or css import -->
+		<put-attribute name="pu_script_variable"	value="/WEB-INF/jsp/pub/layout_fm/inc/pub_scriptVariable.jsp" />
+		<!-- body -->
+		<put-attribute name="popup"					value="/WEB-INF/jsp/pub/fm/common/inc/popup.jsp" />
+		<put-attribute name="header"				value="/WEB-INF/jsp/pub/fm/common/inc/header.jsp" />
+		<put-attribute name="header_search_layer"	value="/WEB-INF/jsp/pub/fm/common/inc/searchLayerPopup.jsp" />
+		<put-attribute name="body"					value="" />
+		<put-attribute name="footer"				value="/WEB-INF/jsp/pub/fm/common/inc/footer.jsp" />
+		<!-- common -->
+		<put-attribute name="pu_common_etc"			value="" /><!-- 각 업무에 필요한 공통 -->
+        <put-attribute name="pu_mc_lnb"				value="/WEB-INF/jsp/pub/fm/common/inc/lnb.jsp" />
+		<put-attribute name="pu_common"				value="/WEB-INF/jsp/pub/fm/common/inc/common.jsp" />
+	</definition>
+	
+	
+	<!-- 템플릿 main -->
+	<definition name="mainLayout" template="/WEB-INF/jsp/pub/layout_fm/mainLayout.jsp">
+		<!-- header -->
+		<put-attribute name="pu_script_css"			value="/WEB-INF/jsp/pub/layout_fm/inc/pub_script_css.jsp" />
+		<put-attribute name="pu_script_UI"			value="/WEB-INF/jsp/pub/layout_fm/inc/pub_ui_script.jsp" /><!-- 퍼블 UI js import -->
+		<put-attribute name="pu_script_css_header"	value="/WEB-INF/jsp/pub/layout_fm/inc/pub_script_css_header.jsp" />
+		<put-attribute name="pu_script_css_etc" 	value="/WEB-INF/jsp/pub/layout_fm/inc/pub_script_css_main.jsp" />
+		<put-attribute name="pu_script_variable"	value="/WEB-INF/jsp/pub/layout_fm/inc/pub_scriptVariable.jsp" />
+		<!-- body -->
+		<put-attribute name="popup"					value="/WEB-INF/jsp/pub/fm/common/inc/popup.jsp" />
+		<put-attribute name="tvShopGoodsArea"		value="/main/tvShopGoodsArea.do" /><!-- 1차 배포 필수 , 삭제 예정, 에TV쇼핑+공영라방+전시상품 -->
+		<put-attribute name="mainTopArea"			value="/main/mainTopArea.do" />
+		<put-attribute name="header"				value="/WEB-INF/jsp/pub/fm/common/inc/header.jsp" />
+		<put-attribute name="header_search_layer"	value="/WEB-INF/jsp/pub/fm/common/inc/searchLayerPopup.jsp" />
+		<put-attribute name="gnbMenu"				value="/WEB-INF/jsp/pub/fm/common/inc/gnb.jsp" /><!-- GNB메뉴 -->
+		<put-attribute name="template_01"			value="" />
+		<put-attribute name="template_02"			value="" />
+		<put-attribute name="template_03"			value="" />
+		<put-attribute name="template_04"			value="" />
+		<put-attribute name="template_05"			value="" />
+		<put-attribute name="body"					value="" />
+		<put-attribute name="footer"				value="/WEB-INF/jsp/pub/fm/common/inc/footer.jsp" />
+		<!-- common -->
+		<put-attribute name="pu_mc_lnb"				value="/lnb/index.do" />
+        <put-attribute name="pu_mc_lnb"				value="/WEB-INF/jsp/pub/fm/common/inc/lnb.jsp" />
+		<put-attribute name="pu_common"				value="/WEB-INF/jsp/pub/fm/common/inc/common.jsp" />
+	</definition>
+	
+	
+	<!-- 템플릿 main contents -->
+	<definition name="mainContsLayout" template="/WEB-INF/jsp/pub/layout_fm/mainContsLayout.jsp">
+		<put-attribute name="template_01"			value="" />
+		<put-attribute name="template_02"			value="" />
+		<put-attribute name="template_03"			value="" />
+		<put-attribute name="template_04"			value="" />
+		<put-attribute name="template_05"			value="" />
+		<put-attribute name="body"					value="" />
+	</definition>
+
+	
+	
+	<!--#######################################################
+	#  최초 진입 지점
+	########################################################-->
+	<definition name="mainIndex"        template="netfunnel.jsp" />
+	
+	
+	
+	<!--#######################################################
+	#  error Layout
+	########################################################-->
+	<definition name="error/*.tiles" template="/WEB-INF/jsp/pub/fm/common/error/{1}.jsp" />
+
+
+	<!--#######################################################
+	#  None Short Form Layout
+	########################################################-->
+	<definition name="none/shortForm/*"    template="/WEB-INF/jsp/pub/fm/display/shortForm/{1}.jsp" >
+		<put-attribute name="pu_script_css"			value="/WEB-INF/jsp/pub/layout_fm/inc/pub_script_css.jsp" />
+		<put-attribute name="pu_script_UI"			value="/WEB-INF/jsp/pub/layout_fm/inc/pub_ui_script.jsp" />
+		<put-attribute name="pu_script_variable"	value="/WEB-INF/jsp/pub/layout_fm/inc/pub_scriptVariable.jsp" />
+	</definition>
+
+	<!--#######################################################
+	#  None Layout
+	########################################################-->
+	<definition name="none/*/*"        template="/WEB-INF/jsp/pub/fm/{1}/{2}.jsp" />
+	<definition name="none/*/*/*"      template="/WEB-INF/jsp/pub/fm/{1}/{2}/{3}.jsp" />
+	<definition name="none/*/*/*/*"    template="/WEB-INF/jsp/pub/fm/{1}/{2}/{3}/{4}.jsp" />
+
+	<!--#######################################################
+	# Common Layout
+	########################################################-->
+	<definition name="common/*/*.tiles" extends="commonLayout">
+		<put-attribute name="body" value="/WEB-INF/jsp/pub/fm/{1}/{2}.jsp" />
+	</definition>
+	<definition name="common/*/*/*.tiles" extends="commonLayout">
+		<put-attribute name="body" value="/WEB-INF/jsp/pub/fm/{1}/{2}/{3}.jsp" />
+	</definition>
+	<definition name="common/*/*/*/*.tiles" extends="commonLayout">
+		<put-attribute name="body" value="/WEB-INF/jsp/pub/fm/{1}/{2}/{3}/{4}.jsp" />
+	</definition>
+	
+	
+	<!--#######################################################
+	# Main Layout
+	########################################################-->
+	<definition name="main/*.tiles" extends="mainLayout">
+		<put-attribute name="body"		value="/WEB-INF/jsp/pub/fm/main/{1}.jsp" />
+	</definition>
+	<definition name="main/*/*.tiles" extends="mainLayout">
+		<put-attribute name="body"		value="/WEB-INF/jsp/pub/fm/main/{1}/{2}.jsp" />
+	</definition>
+	
+	
+	<!--#######################################################
+	# Main Template Layout
+	########################################################-->
+	<definition name="main/*.tiles/*/*/*/*/*/*" extends="mainLayout">
+		<put-attribute name="template_01"	value="/module/display/AjaxCnrTemplate.do?dispCatNo={2}&amp;cnrContsLnkSeqNo={3}" />
+		<put-attribute name="template_02"	value="/module/display/AjaxCnrTemplate.do?dispCatNo={2}&amp;cnrContsLnkSeqNo={4}" />
+		<put-attribute name="template_03"	value="/module/display/AjaxCnrTemplate.do?dispCatNo={2}&amp;cnrContsLnkSeqNo={5}" />
+		<put-attribute name="template_04"	value="/module/display/AjaxCnrTemplate.do?dispCatNo={2}&amp;cnrContsLnkSeqNo={6}" />
+		<put-attribute name="template_05"	value="/module/display/AjaxCnrTemplate.do?dispCatNo={2}&amp;cnrContsLnkSeqNo={7}" />
+		<put-attribute name="body"			value="/WEB-INF/jsp/pub/fm/main/{1}.jsp" />
+	</definition>
+	
+	
+	<!--#######################################################
+	# Mypage Layout
+	########################################################-->
+	<definition name="mypage/*/*.tiles" extends="commonLayout">
+		<put-attribute name="pu_script_css_etc"	value="/WEB-INF/jsp/pub/layout_fm/inc/pub_script_css_mypage.jsp" />
+		<put-attribute name="header" value="/WEB-INF/jsp/pub/fm/common/inc/header.jsp" />
+		<put-attribute name="body" value="/WEB-INF/jsp/pub/fm/mypage/{1}/{2}.jsp" />
+	</definition>
+	<definition name="mypage/*/*/*.tiles" extends="commonLayout">
+		<put-attribute name="pu_script_css_etc"	value="/WEB-INF/jsp/pub/layout_fm/inc/pub_script_css_mypage.jsp" />
+		<put-attribute name="body" value="/WEB-INF/jsp/pub/fm/mypage/{1}/{2}/{3}.jsp" />
+	</definition>
+	
+	
+	<!--#######################################################
+	# etc Layout
+	########################################################-->
+	<definition name="etc/*/*.tiles" extends="commonLayout">
+		<put-attribute name="body" value="/WEB-INF/jsp/pub/fm/etc/{1}/{2}.jsp" />
+	</definition>
+	
+	
+	<!--#######################################################
+	# 고객센터 Layout
+	########################################################-->
+	<definition name="customercenter/*/*.tiles" extends="commonLayout">
+		<put-attribute name="pu_script_css_etc"	value="/WEB-INF/jsp/pub/layout_fm/inc/pub_script_css_customer.jsp" />
+		<put-attribute name="body" value="/WEB-INF/jsp/pub/fm/customercenter/{1}/{2}.jsp" />
+	</definition>
+	
+	<!--#######################################################
+	# 기획전 Layout
+	########################################################-->
+	<definition name="exhibition/*.tiles" extends="commonLayout">
+		<put-attribute name="body" value="/WEB-INF/jsp/pub/fm/exhibition/{1}.jsp" />
+	</definition>
+	
+	<!--#######################################################
+	# 이벤트 Layout
+	########################################################-->
+	<definition name="event/*.tiles" extends="commonLayout">
+		<put-attribute name="pu_script_css_etc" value="/WEB-INF/jsp/pub/layout_fm/inc/pub_script_css_event.jsp" />
+		<put-attribute name="body" value="/WEB-INF/jsp/pub/fm/event/{1}.jsp" />
+	</definition>
+	<definition name="event/*/*.tiles" extends="commonLayout">
+		<put-attribute name="pu_script_css_etc" value="/WEB-INF/jsp/pub/layout_fm/inc/pub_script_css_event.jsp" />
+		<put-attribute name="body" value="/WEB-INF/jsp/pub/fm/event/{1}/{2}.jsp" />
+	</definition>
+	
+	<!--#######################################################
+	# TV쇼핑 Layout
+	########################################################-->
+	<definition name="tvshopping/*.tiles" extends="commonLayout">
+		<put-attribute name="body" value="/WEB-INF/jsp/pub/fm/tvshopping/{1}.jsp" />
+	</definition>
+	<definition name="tvShoppin.main/*.tiles/*/*/*/*/*/*" extends="mainContsLayout">
+		<put-attribute name="template_01"	value="/module/display/AjaxCnrTemplate.do?dispCatNo={2}&amp;cnrContsLnkSeqNo={3}" />
+		<put-attribute name="template_02"	value="/module/display/AjaxCnrTemplate.do?dispCatNo={2}&amp;cnrContsLnkSeqNo={4}" />
+		<put-attribute name="template_03"	value="/module/display/AjaxCnrTemplate.do?dispCatNo={2}&amp;cnrContsLnkSeqNo={5}" />
+		<put-attribute name="template_04"	value="/module/display/AjaxCnrTemplate.do?dispCatNo={2}&amp;cnrContsLnkSeqNo={6}" />
+		<put-attribute name="template_05"	value="/module/display/AjaxCnrTemplate.do?dispCatNo={2}&amp;cnrContsLnkSeqNo={7}" />
+		<put-attribute name="body"			value="/WEB-INF/jsp/pub/fm/tvshopping/{1}.jsp" />
+	</definition>
+	
+	
+	<!--#######################################################
+    # 공영라방 Layout
+    ########################################################-->
+    <definition name="mlc/*.tiles" extends="commonLayout">
+        <put-attribute name="body" value="/WEB-INF/jsp/pub/fm/mlc/{1}.jsp" />
+    </definition>
+    <definition name="mlc/*/*.tiles" extends="commonLayout">
+        <put-attribute name="body" value="/WEB-INF/jsp/pub/fm/mlc/{1}/{2}.jsp" />
+    </definition>
+    <definition name="mlc.main/*.tiles/*/*/*/*/*/*" extends="mainContsLayout">
+		<put-attribute name="template_01"	value="/module/display/AjaxCnrTemplate.do?dispCatNo={2}&amp;cnrContsLnkSeqNo={3}" />
+		<put-attribute name="template_02"	value="/module/display/AjaxCnrTemplate.do?dispCatNo={2}&amp;cnrContsLnkSeqNo={4}" />
+		<put-attribute name="template_03"	value="/module/display/AjaxCnrTemplate.do?dispCatNo={2}&amp;cnrContsLnkSeqNo={5}" />
+		<put-attribute name="template_04"	value="/module/display/AjaxCnrTemplate.do?dispCatNo={2}&amp;cnrContsLnkSeqNo={6}" />
+		<put-attribute name="template_05"	value="/module/display/AjaxCnrTemplate.do?dispCatNo={2}&amp;cnrContsLnkSeqNo={7}" />
+		<put-attribute name="body"			value="/WEB-INF/jsp/pub/fm/mlc/{1}.jsp" />
+	</definition>
+    
+    
+    <!--#######################################################
+    # 전문관 Layout
+    ########################################################-->
+    <definition name="specialshop/*.tiles" extends="commonLayout">
+        <put-attribute name="body" value="/WEB-INF/jsp/pub/fm/specialshop/{1}.jsp" />
+    </definition>
+	
+	
+	<!--#######################################################
+	# 상품상세 Layout
+	########################################################-->
+	<definition name="goods/*.tiles" extends="commonLayout">
+		<!-- <put-attribute name="header"			value="/WEB-INF/jsp/pub/fm/common/inc/headerTemplate/type_subnavi.jsp" /> -->
+		<put-attribute name="pu_script_css_etc" value="/WEB-INF/jsp/pub/layout_fm/inc/pub_script_css_goods.jsp" />
+		<put-attribute name="body" 				value="/WEB-INF/jsp/pub/fm/goods/{1}.jsp" />
+		<put-attribute name="pu_common_etc" 	value="/WEB-INF/jsp/pub/fm/goods/commonlayer.jsp" />
+		<put-attribute name="pu_mc_lnb"				value="" />
+	</definition>
+	
+	<!--#######################################################
+	# 상품 카테고리 Layout
+	########################################################-->
+	<definition name="category/*.tiles" extends="commonLayout">
+		<put-attribute name="body" value="/WEB-INF/jsp/pub/fm/display/category/{1}.jsp" />
+	</definition>
+	
+	
+	
+    
+	<!--#######################################################
+	# 검색 Layout
+	########################################################-->
+	<definition name="search/*.tiles" extends="commonLayout">
+		<put-attribute name="pu_script_css_etc" value="/WEB-INF/jsp/pub/layout_fm/inc/pub_script_css_search.jsp" />
+		<put-attribute name="body" value="/WEB-INF/jsp/pub/fm/search/{1}.jsp" />
+	</definition>
+	
+	<!--#######################################################
+	# 베스트(랭킹) Layout
+	########################################################-->
+	<definition name="best/*.tiles" extends="commonLayout">
+		<put-attribute name="body" value="/WEB-INF/jsp/pub/fm/display/best/{1}.jsp" />
+	</definition>
+	
+	<!--#######################################################
+	# 공영딜 Layout
+	########################################################-->
+	<definition name="imdeal/*.tiles" extends="commonLayout">
+		<put-attribute name="body" value="/WEB-INF/jsp/pub/fm/display/imdeal/{1}.jsp" />
+	</definition>
+	
+	<!--#######################################################
+	# 타임딜 Layout
+	########################################################-->
+	<definition name="timedeal/*.tiles" extends="commonLayout">
+		<put-attribute name="body" value="/WEB-INF/jsp/pub/fm/display/timedeal/{1}.jsp" />
+	</definition>
+	
+	<!--#######################################################
+	# 장바구니 Layout
+	########################################################-->
+	<definition name="cart/*.tiles" extends="commonLayout">
+		<put-attribute name="pu_script_css_etc" value="/WEB-INF/jsp/pub/layout_fm/inc/pub_script_css_cart.jsp" />
+		<put-attribute name="body" value="/WEB-INF/jsp/pub/fm/cart/{1}.jsp" />
+		<put-attribute name="pu_mc_lnb"				value="" />
+	</definition>
+	
+	<!--#######################################################
+	# 테마샵 Layout
+	########################################################-->
+	<definition name="themeshop/*.tiles" extends="commonLayout">
+		<put-attribute name="pu_script_css_etc" value="/WEB-INF/jsp/pub/layout_fm/inc/pub_script_css_themeshop.jsp" />
+		<put-attribute name="body" value="/WEB-INF/jsp/pub/fm/display/themeshop/{1}.jsp" />
+	</definition>
+	
+	<!--#######################################################
+	# 테마 TAB Layout
+	########################################################-->
+	<definition name="themetab/*.tiles" extends="commonLayout">
+		<put-attribute name="pu_script_css_etc" value="/WEB-INF/jsp/pub/layout_fm/inc/pub_script_css_themetab.jsp" />
+		<put-attribute name="body" value="/WEB-INF/jsp/pub/fm/display/themetab/{1}.jsp" />
+	</definition>
+	
+	<!--#######################################################
+	# 혜택상품 TAB Layout
+	########################################################-->
+	<definition name="promotionGoods/*.tiles" extends="commonLayout">
+		<put-attribute name="body" value="/WEB-INF/jsp/pub/fm/display/promotionGoods/{1}.jsp" />
+	</definition>
+
+
+
+
+
+
+
+    <!--#######################################################
+    # 주문 카테고리 Layout
+    ########################################################-->    
+    <definition name="order/*.tiles"        extends="commonLayout">        
+        <put-attribute name="pu_script_css_etc" value="/WEB-INF/jsp/pub/layout_fm/inc/pub_script_css_order.jsp" />
+        <put-attribute name="body"              value="/WEB-INF/jsp/pub/fm/order/{1}.jsp" />        
+        <put-attribute name="pu_common_etc"     value="/WEB-INF/jsp/pub/layout_fm/inc/pub_common_etc_order.jsp" />        
+        <put-attribute name="pu_mc_lnb"             value="" />
+    </definition>      
+    <definition name="order/*/*.tiles"        extends="commonLayout">        
+        <put-attribute name="pu_script_css_etc" value="/WEB-INF/jsp/pub/layout_fm/inc/pub_script_css_order.jsp" />
+        <put-attribute name="body"              value="/WEB-INF/jsp/pub/fm/{1}/{2}.jsp" />        
+        <put-attribute name="pu_common_etc"     value="/WEB-INF/jsp/pub/layout_fm/inc/pub_common_etc_order.jsp" />
+        <!-- <put-attribute name="pu_mc_lnb"         value="" /> -->
+    </definition>      
+    <definition name="renew/*/*.tiles"  extends="commonLayout">                
+        <put-attribute name="pu_script_css_etc" value="/WEB-INF/jsp/pub/layout_fm/inc/pub_script_css_order.jsp" />        
+        <put-attribute name="body"              value="/WEB-INF/jsp/pub/fm/{1}/{2}.jsp" />        
+        <put-attribute name="pu_common_etc"     value="/WEB-INF/jsp/pub/layout_fm/inc/pub_common_etc_order.jsp" />
+        <put-attribute name="pu_mc_lnb"			value="" />
+    </definition>
+    <definition name="renew/*/*/*.tiles"  extends="commonLayout">                
+        <put-attribute name="pu_script_css_etc" value="/WEB-INF/jsp/pub/layout_fm/inc/pub_script_css_order.jsp" />        
+        <put-attribute name="body"              value="/WEB-INF/jsp/pub/fm/{1}/{2}/{3}.jsp" />        
+        <put-attribute name="pu_common_etc"     value="/WEB-INF/jsp/pub/layout_fm/inc/pub_common_etc_order.jsp" />
+        <put-attribute name="pu_mc_lnb"			value="" />
+    </definition>    
+    <definition name="orderpopup/*/*.tiles"    extends="commonLayout" >
+       <put-attribute name="pu_script_css_etc" value="/WEB-INF/jsp/pub/layout_fm/inc/pub_script_css_order.jsp" />       
+       <put-attribute name="body"              value="/WEB-INF/jsp/pub/fm/{1}/{2}.jsp" />
+       <put-attribute name="pu_common_etc"     value="/WEB-INF/jsp/pub/layout_fm/inc/pub_common_etc_order.jsp" />
+       <put-attribute name="pu_mc_lnb"			value="" />
+    </definition>
+       <definition name="orderpopup/*/*/*.tiles"    extends="commonLayout" >
+       <put-attribute name="pu_script_css_etc" value="/WEB-INF/jsp/pub/layout_fm/inc/pub_script_css_order.jsp" />       
+       <put-attribute name="body"              value="/WEB-INF/jsp/pub/fm/{1}/{2}/{3}.jsp" />
+       <put-attribute name="pu_common_etc"     value="/WEB-INF/jsp/pub/layout_fm/inc/pub_common_etc_order.jsp" />
+       <put-attribute name="pu_mc_lnb"			value="" />
+    </definition>    
+    <definition name="orderpopup/*/*/*/*.tiles"    extends="commonLayout" >
+       <put-attribute name="pu_script_css_etc" value="/WEB-INF/jsp/pub/layout_fm/inc/pub_script_css_order.jsp" />       
+       <put-attribute name="body"              value="/WEB-INF/jsp/pub/fm/{1}/{2}/{3}/{4}.jsp" />
+       <put-attribute name="pu_common_etc"     value="/WEB-INF/jsp/pub/layout_fm/inc/pub_common_etc_order.jsp" />
+       <put-attribute name="pu_mc_lnb"			value="" />
+    </definition>
+    
+    
+    
+    <!--#######################################################
+    # 주문 리스트 Layout
+    ########################################################--> 
+    <!-- EC Layout Lnb 호출부를 맞추기 위한 중복 선언 (renew/lnb) -->
+    <definition name="renew/lnb/*/*.tiles" extends="commonLayout">
+        <put-attribute name="pu_script_css_etc" value="/WEB-INF/jsp/pub/layout_fm/inc/pub_script_css_order.jsp" />
+        <put-attribute name="body"              value="/WEB-INF/jsp/pub/fm/{1}/{2}.jsp" />
+        <put-attribute name="pu_common_etc"     value="/WEB-INF/jsp/pub/layout_fm/inc/pub_common_etc_order.jsp" />
+        <!-- <put-attribute name="pu_mc_lnb"			value="" /> -->
+    </definition>
+
+    <definition name="renew/lnb/*/*/*.tiles" extends="commonLayout">
+        <put-attribute name="pu_script_css_etc" value="/WEB-INF/jsp/pub/layout_fm/inc/pub_script_css_order.jsp" />
+        <put-attribute name="body"              value="/WEB-INF/jsp/pub/fm/{1}/{2}/{3}.jsp" />
+        <put-attribute name="pu_common_etc"     value="/WEB-INF/jsp/pub/layout_fm/inc/pub_common_etc_order.jsp" />
+        <!-- <put-attribute name="pu_mc_lnb"			value="" /> -->
+    </definition>
+    <!-- //EC Layout Lnb 호출부를 맞추기 위한 중복 선언 (renew/lnb) -->
+
+
+
+
+
+	<!--#######################################################
+	# window open popup Layout
+	########################################################-->
+	<definition name="openpopup/*.tiles" extends="commonLayout">
+		<put-attribute name="header"				value="" />
+		<put-attribute name="body"		value="/WEB-INF/jsp/pub/fm/{1}.jsp" />
+		<put-attribute name="footer"				value="" />
+		<put-attribute name="pu_mc_lnb"				value="" />
+	</definition>
+	<definition name="openpopup/*/*.tiles" extends="commonLayout">
+		<put-attribute name="header"				value="" />
+		<put-attribute name="body"		value="/WEB-INF/jsp/pub/fm/{1}/{2}.jsp" />
+		<put-attribute name="footer"				value="" />
+		<put-attribute name="pu_mc_lnb"				value="" />
+	</definition>
+	<definition name="openpopup/*/*/*.tiles" extends="commonLayout">
+		<put-attribute name="header"				value="" />
+		<put-attribute name="body"		value="/WEB-INF/jsp/pub/fm/{1}/{2}/{3}.jsp" />
+		<put-attribute name="footer"				value="" />
+		<put-attribute name="pu_mc_lnb"				value="" />
+	</definition>
+	
+	<!--#######################################################
+	# window open popup Layout
+	########################################################-->
+	<definition name="windowopen/*.tiles" extends="commonLayout">
+		<put-attribute name="header"		value="" />
+		<put-attribute name="body"			value="/WEB-INF/jsp/pub/fm/{1}.jsp" />
+		<put-attribute name="footer"		value="" />
+		<put-attribute name="pu_mc_lnb"		value="" />
+	</definition>
+	<definition name="windowopen/*/*.tiles" extends="commonLayout">
+		<put-attribute name="header"		value="" />
+		<put-attribute name="body"			value="/WEB-INF/jsp/pub/fm/{1}/{2}.jsp" />
+		<put-attribute name="footer"		value="" />
+		<put-attribute name="pu_mc_lnb"		value="" />
+	</definition>
+	<definition name="windowopen/*/*/*.tiles" extends="commonLayout">
+		<put-attribute name="header"		value="" />
+		<put-attribute name="body"			value="/WEB-INF/jsp/pub/fm/{1}/{2}/{3}.jsp" />
+		<put-attribute name="footer"		value="" />
+		<put-attribute name="pu_mc_lnb"		value="" />
+	</definition>
+	
+	<!--#######################################################
+	# iframe Layout
+	########################################################-->
+	<definition name="iframe/*.tiles" extends="commonLayout">
+		<put-attribute name="pu_script_UI"	value="" />
+		<put-attribute name="header"		value="" />
+		<put-attribute name="body"			value="/WEB-INF/jsp/pub/fm/{1}.jsp" />
+		<put-attribute name="footer"		value="" />
+		<put-attribute name="pu_common"		value="/WEB-INF/jsp/pub/fm/common/inc/common.jsp" />
+		<put-attribute name="pu_mc_lnb"		value="" />
+	</definition>
+	<definition name="iframe/*/*.tiles" extends="commonLayout">
+		<put-attribute name="pu_script_UI"	value="" />
+		<put-attribute name="header"		value="" />
+		<put-attribute name="body"			value="/WEB-INF/jsp/pub/fm/{1}/{2}.jsp" />
+		<put-attribute name="footer"		value="" />
+		<put-attribute name="pu_common"		value="/WEB-INF/jsp/pub/fm/common/inc/common.jsp" />
+		<put-attribute name="pu_mc_lnb"		value="" />
+	</definition>
+	<definition name="iframe/*/*/*.tiles" extends="commonLayout">
+		<put-attribute name="pu_script_UI"	value="" />
+		<put-attribute name="header"		value="" />
+		<put-attribute name="body"			value="/WEB-INF/jsp/pub/fm/{1}/{2}/{3}.jsp" />
+		<put-attribute name="footer"		value="" />
+		<put-attribute name="pu_common"	 	value="/WEB-INF/jsp/pub/fm/common/inc/common.jsp" />
+		<put-attribute name="pu_mc_lnb"		value="" />
+	</definition>
+	
+	
+	<!--#######################################################
+	# nofooter Layout
+	########################################################-->
+	<definition name="nofooter/*.tiles" extends="commonLayout">
+		<put-attribute name="body"		value="/WEB-INF/jsp/pub/fm/{1}.jsp" />
+		<put-attribute name="pu_mc_lnb"	value="" />
+		<put-attribute name="footer"	value="" />
+	</definition>
+	<definition name="nofooter/*/*.tiles" extends="commonLayout">
+		<put-attribute name="body"		value="/WEB-INF/jsp/pub/fm/{1}/{2}.jsp" />
+		<put-attribute name="pu_mc_lnb"	value="" />
+		<put-attribute name="footer"	value="" />
+	</definition>
+	<definition name="nofooter/*/*/*.tiles" extends="commonLayout">
+		<put-attribute name="body"		value="/WEB-INF/jsp/pub/fm/{1}/{2}/{3}.jsp" />
+		<put-attribute name="pu_mc_lnb"	value="" />
+		<put-attribute name="footer"	value="" />
+	</definition>
+	
+</tiles-definitions>
