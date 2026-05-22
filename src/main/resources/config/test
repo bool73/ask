@@ -1,0 +1,983 @@
+-s------ frame.tld
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<taglib xmlns="http://java.sun.com/xml/ns/javaee"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-jsptaglibrary_2_1.xsd"
+    version="2.1">
+    
+  <description>Frame Tag Library</description>
+  <display-name>Frame</display-name>
+  <tlib-version>1.0</tlib-version>
+  <short-name>frame</short-name>
+
+  <!-- TempleUnit :: 2022-11-22 \uc2e0\uaddc -->
+	<tag>
+		<description>Display Template Tag</description>
+		<name>CornerGroupList</name>
+		<tag-class>com.pub.fo.common.tags.DisplayTemplateTag</tag-class>
+		<body-content>JSP</body-content>
+		<attribute>
+	    	<description>\ud398\uc774\uc9c0 \ubc88\ud638 :: \ube44\uc815\ud615 or \uc804\uc2dc\uce74\ud14c\uace0\ub9ac</description>
+	    	<name>dispCatNo</name>
+	    	<required>true</required>
+	    	<rtexprvalue>true</rtexprvalue>
+		</attribute>
+		<attribute>
+	    	<description>\ucf54\ub108\ucee8\ud150\uce20\uc5f0\uacb0\uc77c\ub828\ubc88\ud638</description>
+	    	<name>cnrContsLnkSeqNo</name>
+	    	<required>false</required>
+	    	<rtexprvalue>true</rtexprvalue>
+		</attribute>
+		<attribute>
+	    	<description>\ub178\ucd9c\uc81c\uc678 \ucf54\ub108\ucee8\ud150\uce20\uc5f0\uacb0\uc77c\ub828\ubc88\ud638</description>
+	    	<name>notCnrContsLnkSeqNoList</name>
+	    	<required>false</required>
+	    	<rtexprvalue>true</rtexprvalue>
+		</attribute>
+	</tag>
+	
+</taglib>
+-e------ frame.tld
+
+
+-s------ gyLiveMain
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core"%>
+<%@ taglib uri="/WEB-INF/tld/frame.tld" prefix="frame" %>
+<%@ taglib uri="http://www.springframework.org/tags" prefix="spring"%>
+<%@ page trimDirectiveWhitespaces="true" %>
+
+<!-- ###############################################################################
+##### \ubcc4\ub3c4 css, script \uc801\uc6a9 \uc601\uc5ed
+################################################################################ -->
+<link rel="stylesheet" href="/css/gy_page_livebroadcast.css?ver=${view.scriptVersion }">
+
+<br> \uc5ec\uae30\ub2dd?!?!?! \ub2e4\uc2dc\uc138\ud305
+<%-- <frame:CornerGroupList dispCatNo="${dispCatNo }"></frame:CornerGroupList> --%>
+<frame:CornerGroupList dispCatNo="${dispCatNo }" notCnrContsLnkSeqNoList="${notSeqNoList }"></frame:CornerGroupList>
+
+<script type="text/javascript">
+(function(){ let me = window.gyLiveMainMgr = {
+    playerControl : function(id, isPlay) {
+    	if(document.getElementById(id) == null) return ;
+        let iframe = document.getElementById(id).contentWindow;
+        let dataJson = {};
+        dataJson.fnName = "play";
+        dataJson.isPlay = isPlay;
+        iframe.postMessage(JSON.stringify(dataJson), "*");
+    }
+
+}})();
+
+
+$(document).ready(function() {
+    
+    $(document).on('scroll', function() {
+        $("#mainContainer ul.dv-shotPlayer").each(function() {
+            let then = this;
+            let isActive = $(then).hasClass("active");
+            
+            if(commonTool.isVisibleElemnet($(then))) {
+                if(!isActive) {
+                    $(this).find(".dv-mlc-live").each(function() {
+                        let iframeId = $(this).find("iframe").attr("id");
+                        gyLiveMainMgr.playerControl(iframeId, true);
+                    });
+                    
+                    $(then).addClass("active");
+                }
+            } else {
+                if(isActive) {
+                    $(this).find(".dv-mlc-live").each(function() {
+                        let iframeId = $(this).find("iframe").attr("id");
+                        gyLiveMainMgr.playerControl(iframeId, false);
+                    });
+                    
+                    $(then).removeClass("active");
+                }
+            }
+        });
+    });
+    
+    
+});
+</script>
+-e------ gyLiveMain
+
+
+
+
+
+
+-s------ mainContsLayout
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
+<%@ taglib uri="http://tiles.apache.org/tags-tiles" prefix="tiles"%>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"%>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/functions" prefix="fn"%>
+<%
+	/**
+	* @Description : \ubaa8\ubc14\uc77c \uba54\uc778 \ucee8\ud150\uce20 \ub808\uc774\uc544\uc6c3
+	* @Modification Information
+	*
+	*   \uc218\uc815\uc77c      \uc218\uc815\uc790              \uc218\uc815\ub0b4\uc6a9
+	*  -------     -----------    ---------------------------
+	*  2023.04.21  \uc2e0\ubb38\uc12d				\uc628\ub77c\uc778 \ub9ac\ub274\uc5bc
+    *
+	*/
+%>11
+					\uacf5\uc601\ub77c\ubc29 \ub77c\uc774\ube0c
+					<c:choose>
+						<c:when test="${fn:length(cornerGroupVoList) > 0 }">
+							<c:set var="itm" value="${cornerGroupVoList[0]}" />
+							<div class="dv-cnr-group-list" cnrcontslnkseqno="${itm.cnrContsLnkSeqNo}" showareasctcd="${itm.showAreaSctCd}" cnrno="${itm.cnrNo}" tplno="${itm.tplNo}" tpltpcd="${itm.tplTpCd}" conts1maxdispcnt="${itm.conts1MaxDispCnt}" conts2maxdispcnt="${itm.conts2MaxDispCnt}" dispcatno="${itm.dispCatNo}" apply="true">
+						</c:when>
+						<c:otherwise>
+							<div class="dv-cnr-group-list" apply="true" style="display:none;">
+						</c:otherwise>
+					</c:choose>
+						<tiles:insertAttribute name="template_01" />
+					</div>
+					
+					\ubc30\ub108 \ubb58 \uc88b\uc544\ud558\ub294\uc9c0
+					 <c:choose>
+						<c:when test="${fn:length(cornerGroupVoList) > 1 }">
+							<c:set var="itm" value="${cornerGroupVoList[1]}" />
+							<div class="dv-cnr-group-list" cnrcontslnkseqno="${itm.cnrContsLnkSeqNo}" showareasctcd="${itm.showAreaSctCd}" cnrno="${itm.cnrNo}" tplno="${itm.tplNo}" tpltpcd="${itm.tplTpCd}" conts1maxdispcnt="${itm.conts1MaxDispCnt}" conts2maxdispcnt="${itm.conts2MaxDispCnt}" dispcatno="${itm.dispCatNo}" apply="true">
+						</c:when>
+						<c:otherwise>
+							<div class="dv-cnr-group-list" apply="true" style="display:none;">
+						</c:otherwise>
+					</c:choose>
+						<tiles:insertAttribute name="template_02" />
+					</div>
+					
+					\ubd81\uce74\ud14c\uace0\ub9ac
+					<c:choose>
+						<c:when test="${fn:length(cornerGroupVoList) > 2 }">
+							<c:set var="itm" value="${cornerGroupVoList[2]}" />
+							<div class="dv-cnr-group-list" cnrcontslnkseqno="${itm.cnrContsLnkSeqNo}" showareasctcd="${itm.showAreaSctCd}" cnrno="${itm.cnrNo}" tplno="${itm.tplNo}" tpltpcd="${itm.tplTpCd}" conts1maxdispcnt="${itm.conts1MaxDispCnt}" conts2maxdispcnt="${itm.conts2MaxDispCnt}" dispcatno="${itm.dispCatNo}" apply="true">
+						</c:when>
+						<c:otherwise>
+							<div class="dv-cnr-group-list" apply="true" style="display:none;">
+						</c:otherwise>
+					</c:choose>
+						<tiles:insertAttribute name="template_03" />
+					</div>
+				<%--
+					<c:choose>
+						<c:when test="${fn:length(cornerGroupVoList) > 3 }">
+							<c:set var="itm" value="${cornerGroupVoList[3]}" />
+							<div class="dv-cnr-group-list" cnrcontslnkseqno="${itm.cnrContsLnkSeqNo}" showareasctcd="${itm.showAreaSctCd}" cnrno="${itm.cnrNo}" tplno="${itm.tplNo}" tpltpcd="${itm.tplTpCd}" conts1maxdispcnt="${itm.conts1MaxDispCnt}" conts2maxdispcnt="${itm.conts2MaxDispCnt}" dispcatno="${itm.dispCatNo}" apply="true">
+						</c:when>
+						<c:otherwise>
+							<div class="dv-cnr-group-list" apply="true" style="display:none;">
+						</c:otherwise>
+					</c:choose>
+						<tiles:insertAttribute name="template_04" />
+					</div>
+					
+					<c:choose>
+						<c:when test="${fn:length(cornerGroupVoList) > 4 }">
+							<c:set var="itm" value="${cornerGroupVoList[4]}" />
+							<div class="dv-cnr-group-list" cnrcontslnkseqno="${itm.cnrContsLnkSeqNo}" showareasctcd="${itm.showAreaSctCd}" cnrno="${itm.cnrNo}" tplno="${itm.tplNo}" tpltpcd="${itm.tplTpCd}" conts1maxdispcnt="${itm.conts1MaxDispCnt}" conts2maxdispcnt="${itm.conts2MaxDispCnt}" dispcatno="${itm.dispCatNo}" apply="true">
+						</c:when>
+						<c:otherwise>
+							<div class="dv-cnr-group-list" apply="true" style="display:none;">
+						</c:otherwise>
+					</c:choose>
+						<tiles:insertAttribute name="template_05" />
+					</div>
+					
+					<tiles:insertAttribute name="body" /> --%>
+					
+					
+-e------ mainContsLayout
+
+
+
+
+
+
+-s------ mainLayout
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
+<%@ taglib uri="http://tiles.apache.org/tags-tiles" prefix="tiles"%>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"%>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/functions" prefix="fn"%>
+<%@ page trimDirectiveWhitespaces="true" %>
+<%
+	/**
+	* @Description : \ubaa8\ubc14\uc77c \uae30\ubcf8 \ub808\uc774\uc544\uc6c3
+	* @Modification Information
+	*
+	*   \uc218\uc815\uc77c      \uc218\uc815\uc790                \uc218\uc815\ub0b4\uc6a9
+	*  -------     -----------    ---------------------------
+	*  2022.08.29  \uc2e0\ubb38\uc12d		  \uc628\ub77c\uc778 \ub9ac\ub274\uc5bc
+	 * 2023.11.17   CHEN 	        # 52162  \ud30c\ube44\ucf58 \uc6f9\uce90\uc26c \uc801\uc6a9 \uc694\uccad \uac74
+	 * 2024.06.28   CHEN          [#67327] AI \uac1c\uc778\ud654 \ucd94\ucc9c \ubc0f \uc778\uc571 \ub9c8\ucf00\ud305 \uc790\ub3d9\ud654 \uc11c\ube44\uc2a4 \ub3c4\uc785 (\uadf8\ub8e8\ube44 \uacf5\uacf5\uae30\uad00\uc6a9)_\uc804\uc2dc_\uac80\uc0c9_\uacf5\ud1b5
+	 * 2024.08.01   namxjung      #67957 [\uc790\uccb4\uac1c\uc120] \uc8fc\ubb38\uc720\uc785\uacbd\ub85c \uad00\ub828 \uac1c\uc120\uc694\uccad \uac74\u2461 => \uc804\uc2dc\uadf8\ub8f9\ub178\ucd9c\uc2dc \ucf54\ub108\uba85 \ucd94\uac00
+	*/
+%>
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, minimum-scale=1.0, maximum-scale=1, target-densitydpi=medium-dpi, viewport-fit=cover">
+  <meta name="format-detection" content="telephone=no">
+
+	<!-- OG-TAG -->
+	<meta property="og:title" content="${view.ogTitle}" >
+	<meta property="og:type" content="${view.ogType}" >
+	<meta property="og:url" content="${view.ogUrl}" >
+	<meta property="og:site_name" content="${view.ogSiteName}" >
+	<meta property="og:description" content="${view.ogDescription}" >
+	<meta property="og:image" content="${view.ogImage}" >
+	<c:choose>
+		<c:when test="${not empty view.ogImageUrl}">
+			<meta property="og:image:url" content="${view.ogImageUrl}" >
+		</c:when>
+		<c:otherwise>
+			<meta property="og:image:url" content="${view.ogImage}" >
+		</c:otherwise>
+	</c:choose>
+	<meta property="og:image:type" content="${view.ogImageType}" >
+	<meta property="og:image:width" content="${view.ogImageWidth}" >
+	<meta property="og:image:height" content="${view.ogImageHeight}" >
+	<%--<!-- GROOBEE \uc815\ubcf4\uc218\uc9d1 -->
+	<meta property="groobee:member_id" content="${view.mbrNoEnc}"/>
+    <meta property="groobee:member_grade" content="${view.mstCstGdCd eq '600' ? view.mstCstGdCd : view.cstGdCd}"/>
+	<meta property="groobee:member_gender" content="${view.gndrTypCd}"/>
+	<meta property="groobee:member_age" content="${view.ageGroup}"/>--%>
+
+	  <title>${view.siteNm }</title>
+<c:if test="${view.entDeviceCd  != 'MBA'}">
+	<link rel="icon" type="image/png" sizes="192x192" href="${view.imgStaticPath }/img/fm/common/favicon/android-icon-192x192.png">
+	<link rel="icon" type="image/png" sizes="32x32" href="${view.imgStaticPath }/img/fm/common/favicon/favicon-32x32.png">
+	<link rel="icon" type="image/png" sizes="96x96" href="${view.imgStaticPath }/img/fm/common/favicon/favicon-96x96.png">
+	<link rel="icon" type="image/png" sizes="16x16" href="${view.imgStaticPath }/img/fm/common/favicon/favicon-16x16.png">
+	<link rel="apple-touch-icon" sizes="57x57" href="${view.imgStaticPath }/img/fm/common/favicon/apple-icon-57x57.png">
+	<link rel="apple-touch-icon" sizes="60x60" href="${view.imgStaticPath }/img/fm/common/favicon/apple-icon-60x60.png">
+	<link rel="apple-touch-icon" sizes="72x72" href="${view.imgStaticPath }/img/fm/common/favicon/apple-icon-72x72.png">
+	<link rel="apple-touch-icon" sizes="76x76" href="${view.imgStaticPath }/img/fm/common/favicon/apple-icon-76x76.png">
+	<link rel="apple-touch-icon" sizes="114x114" href="${view.imgStaticPath }/img/fm/common/favicon/apple-icon-114x114.png">
+	<link rel="apple-touch-icon" sizes="120x120" href="${view.imgStaticPath }/img/fm/common/favicon/apple-icon-120x120.png">
+	<link rel="apple-touch-icon" sizes="144x144" href="${view.imgStaticPath }/img/fm/common/favicon/apple-icon-144x144.png">
+	<link rel="apple-touch-icon" sizes="152x152" href="${view.imgStaticPath }/img/fm/common/favicon/apple-icon-152x152.png">
+	<link rel="apple-touch-icon" sizes="180x180" href="${view.imgStaticPath }/img/fm/common/favicon/apple-icon-180x180.png">
+</c:if>
+	<!-- \ub124\uc774\ubc84 \uc2a4\ud06c\ub9bd\ud2b8 -->
+	<c:if test="${(view.alcLnkNm eq 'naversch') || (view.alcLnkNm eq 'naverpcs') || (view.alcLnkNm eq 'naverhd') || (view.alcLnkNm eq 'naverlg') || (view.alcLnkNm eq 'navermn')}">
+		<script type="text/javascript" src="//wcs.naver.net/wcslog.js"></script>
+		<script type="text/javascript">
+			try {
+				if(!wcs_add) var wcs_add = {};
+				wcs_add["wa"] = "s_3ee372c590b0";
+				if (!_nasa) var _nasa={};
+				if (window.wcs) {
+					wcs.inflow("gongyoungshop.kr");
+					wcs_do(_nasa);
+				}
+			}catch(ex){
+				console.log("error", ex);
+			};
+		</script>
+	</c:if>
+
+      <!-- SEO \uad00\ub828 \uc0ac\uc774\ud2b8 \uc5f0\uad00 \ucc44\ub110 \ub9c8\ud06c\uc5c5 (#93295) -->
+      <script type="application/ld+json">
+          {
+              "@context": "http://schema.org",
+              "@type": "Organization",
+              "name": "\uacf5\uc601\uc1fc\ud551",
+              "url": "https://www.gongyoungshop.kr",
+              "sameAs": [
+                  "https://www.youtube.com/@Gongyoungshop",
+                  "https://www.instagram.com/gongyoungshop/",
+                  "https://www.facebook.com/gongyoungshop",
+                  "https://smartstore.naver.com/gongyoungshopping",
+                  "https://play.google.com/store/apps/details?id=com.pub.fm",
+                  "https://apps.apple.com/kr/app/%EA%B3%B5%EC%98%81%EC%87%BC%ED%95%91-%EA%B3%B5%EC%98%81%ED%99%88%EC%87%BC%ED%95%91/id1043437583"
+              ]
+          }
+      </script>
+	
+	<!-- \uacf5\ud1b5:: script variable -->
+	<tiles:insertAttribute name="pu_script_variable" />
+	
+	<!-- \uacf5\ud1b5:: script/css -->
+	<tiles:insertAttribute name="pu_script_css" />
+	
+	<!-- \uacf5\ud1b5(\ud37c\ube14UI):: script/css -->
+	<tiles:insertAttribute name="pu_script_UI" />
+	
+	<!-- \uc5c5\ubb34\ubcc4:: script/css -->
+	<tiles:insertAttribute name="pu_script_css_etc" />
+	
+	<script type="text/javascript">
+		commonTool.ajaxDefaultSetup();		// global ajax setup
+		window.onpageshow = function(event){
+			if(event.persisted) commonTool.wait.hide();				// \ub4a4\ub85c\uac00\uae30\uc2dc \ub178\ucd9c\ub41c wait layer \uc885\ub8cc
+		};
+	</script>
+	
+	<!-- \uacf5\ud1b5:: script/css Header -->
+	<tiles:insertAttribute name="pu_script_css_header" />
+
+
+	<!-- is home -->
+	<c:set var="isHome" value="false" />
+	<c:if test="${fn:length(cornerGroupVoList) > 0 }">
+		<c:set var="isHome" value="true" />
+	</c:if>
+</head>
+
+
+
+<c:choose>
+	<c:when test="${isHome}">
+		<body class="gy-home ${isMainRenew ? '-advance2025' : ''} ">
+	</c:when>
+	<c:otherwise>
+		<body>
+	</c:otherwise>
+</c:choose>
+
+	<c:choose>
+		<c:when test="${isMainRenew}">
+			<tiles:putAttribute name="mainTopArea" value="/main/mainTopArea.do"/>
+			<tiles:putAttribute name="popup" value="/WEB-INF/jsp/pub/fm/common/inc/popup.jsp?renewYn=Y"/>
+		</c:when>
+		<c:otherwise>
+			<tiles:putAttribute name="mainTopArea" value="/main/tvShopGoodsArea.do"/>
+			<tiles:putAttribute name="popup" value="/WEB-INF/jsp/pub/fm/common/inc/popup.jsp?renewYn=N"/>
+		</c:otherwise>
+	</c:choose>
+
+	<tiles:insertAttribute name="popup" />
+
+    <!-- \uacf5\ud1b5 Header -->
+	<header class="global-header">
+		<div class="tp-main-livezone">
+	        <div class="gnb-container" id="gnbContainer">
+	            <%--<tiles:insertAttribute name="tvShopGoodsArea" /><!-- TV\uc1fc\ud551/\uacf5\uc601\ub77c\ubc29/\uc804\uc2dc\uc0c1\ud488 -->--%>
+
+
+	            <tiles:insertAttribute name="mainTopArea" />
+	            <tiles:insertAttribute name="header" />
+	        </div>
+        </div>
+        <tiles:insertAttribute name="header_search_layer" />
+    </header>
+
+	<!-- GNB \ub808\uc774\uc544\uc6c3: GNB\uba54\ub274+\ucee8\ud150\uce20\uc2a4\uc640\uc774\ud37c \ucee8\ud14c\uc774\ub108 -->
+	<div class="gnb-main-container">	
+		<main class="main-content" id="mainContent">
+			<tiles:insertAttribute name="gnbMenu" />
+			<!-- GNB \ub808\uc774\uc544\uc6c3: \ucee8\ud150\uce20 \uc2a4\uc640\uc774\ud37c -->
+		    <div class="swiper-container swiper-main-pane" id="mainPane">
+				<%--\ud648 \ub9ac\ub274\uc5bc \uc548\uc804\ud654 \uc774\ud6c4 headerTool.js \uac1c\uc124 \ud544\uc694--%>
+				<c:set var="tvShopLiveBrc" value="${not empty mainTvLiveData ? mainTvLiveData.tvShopLiveBrc : null}"/>
+				<c:if test="${not empty tvShopLiveBrc}">
+					<div id="devGnbLiveBrcArea" style="display: none;">
+						<div class="dv-liveDispPrdList" >
+							<c:choose>
+								<c:when test="${tvShopLiveBrc.prdNonSchdgYn eq 'Y'}">
+									<div data-prd-id="${tvShopLiveBrc.tgtPrdInfo.prdId}" data-img-origin="${fn:replace(view.imgServerUrl, 'ECMCFO', '')}${tvShopLiveBrc.omzFileNm}"></div>
+								</c:when>
+								<c:otherwise>
+									<div data-prd-id="${tvShopLiveBrc.tgtPrdInfo.prdId}" data-img-origin="${view.imgProductPath}${fn:replace(tvShopLiveBrc.tgtPrdInfo.imgUrl,'_SIZE_','')}" ></div>
+								</c:otherwise>
+							</c:choose>
+						</div>
+					</div>
+				</c:if>
+		      <div class="swiper-wrapper">
+		        <div class="swiper-slide">
+			        <!-- GNB \ub808\uc774\uc544\uc6c3: \ucee8\ud150\uce20 \uc601\uc5ed -->
+			        <div class="p-main dev-gnb-contents" id="mainContainer">
+			        <c:choose>
+						<c:when test="${isHome}">
+							<c:set var="itm" value="${cornerGroupVoList[0]}" />
+							<div class="dv-cnr-group-list" cnrcontslnkseqno="${itm.cnrContsLnkSeqNo}" showareasctcd="${itm.showAreaSctCd}" cnrno="${itm.cnrNo}" cnrnm="${itm.cnrNm}" displaytit ="${itm.displayTit}" tplno="${itm.tplNo}" tpltpcd="${itm.tplTpCd}" conts1maxdispcnt="${itm.conts1MaxDispCnt}" conts2maxdispcnt="${itm.conts2MaxDispCnt}" dispcatno="${itm.dispCatNo}" apply="true">
+						</c:when>
+						<c:otherwise>
+							<div class="dv-cnr-group-list" apply="true" style="display:none;">
+						</c:otherwise>
+					</c:choose>
+						<tiles:insertAttribute name="template_01" />
+					</div>
+
+					<c:choose>
+						<c:when test="${isHome}">
+							<c:set var="itm" value="${cornerGroupVoList[1]}" />
+							<div class="dv-cnr-group-list" cnrcontslnkseqno="${itm.cnrContsLnkSeqNo}" showareasctcd="${itm.showAreaSctCd}" cnrno="${itm.cnrNo}" cnrnm="${itm.cnrNm}" displaytit ="${itm.displayTit}" tplno="${itm.tplNo}" tpltpcd="${itm.tplTpCd}" conts1maxdispcnt="${itm.conts1MaxDispCnt}" conts2maxdispcnt="${itm.conts2MaxDispCnt}" dispcatno="${itm.dispCatNo}" apply="true">
+						</c:when>
+						<c:otherwise>
+							<div class="dv-cnr-group-list" apply="true" style="display:none;">
+						</c:otherwise>
+					</c:choose>
+						<tiles:insertAttribute name="template_02" />
+					</div>
+
+					<c:choose>
+						<c:when test="${isHome}">
+							<c:set var="itm" value="${cornerGroupVoList[2]}" />
+							<div class="dv-cnr-group-list" cnrcontslnkseqno="${itm.cnrContsLnkSeqNo}" showareasctcd="${itm.showAreaSctCd}" cnrno="${itm.cnrNo}" cnrnm="${itm.cnrNm}" displaytit ="${itm.displayTit}" tplno="${itm.tplNo}" tpltpcd="${itm.tplTpCd}" conts1maxdispcnt="${itm.conts1MaxDispCnt}" conts2maxdispcnt="${itm.conts2MaxDispCnt}" dispcatno="${itm.dispCatNo}" apply="true">
+						</c:when>
+						<c:otherwise>
+							<div class="dv-cnr-group-list" apply="true" style="display:none;">
+						</c:otherwise>
+					</c:choose>
+						<tiles:insertAttribute name="template_03" />
+					</div>
+
+					<c:choose>
+						<c:when test="${isHome}">
+							<c:set var="itm" value="${cornerGroupVoList[3]}" />
+							<div class="dv-cnr-group-list" cnrcontslnkseqno="${itm.cnrContsLnkSeqNo}" showareasctcd="${itm.showAreaSctCd}" cnrno="${itm.cnrNo}" cnrnm="${itm.cnrNm}" displaytit ="${itm.displayTit}" tplno="${itm.tplNo}" tpltpcd="${itm.tplTpCd}" conts1maxdispcnt="${itm.conts1MaxDispCnt}" conts2maxdispcnt="${itm.conts2MaxDispCnt}" dispcatno="${itm.dispCatNo}" apply="true">
+						</c:when>
+						<c:otherwise>
+							<div class="dv-cnr-group-list" apply="true" style="display:none;">
+						</c:otherwise>
+					</c:choose>
+						<tiles:insertAttribute name="template_04" />
+					</div>
+
+					<c:choose>
+						<c:when test="${isHome}">
+							<c:set var="itm" value="${cornerGroupVoList[4]}" />
+							<div class="dv-cnr-group-list" cnrcontslnkseqno="${itm.cnrContsLnkSeqNo}" showareasctcd="${itm.showAreaSctCd}" cnrno="${itm.cnrNo}" cnrnm="${itm.cnrNm}" displaytit ="${itm.displayTit}" tplno="${itm.tplNo}" tpltpcd="${itm.tplTpCd}" conts1maxdispcnt="${itm.conts1MaxDispCnt}" conts2maxdispcnt="${itm.conts2MaxDispCnt}" dispcatno="${itm.dispCatNo}" apply="true">
+						</c:when>
+						<c:otherwise>
+							<div class="dv-cnr-group-list" apply="true" style="display:none;">
+						</c:otherwise>
+					</c:choose>
+						<tiles:insertAttribute name="template_05" />
+					</div>
+
+						<tiles:insertAttribute name="body" />
+		          	</div>
+		        </div>
+		      </div>
+		    </div>
+		
+		</main>
+		
+		<footer class="global-footer" id="globalFooter">
+			<tiles:insertAttribute name="footer" />
+		</footer>
+	</div>
+	
+	<!-- mc-lnb -->
+	<tiles:insertAttribute name="pu_mc_lnb" />
+	
+	<!-- \uacf5\ud1b5:: jsp -->
+	<tiles:insertAttribute name="pu_common" />
+	
+	<%-- 
+	<!-- \ub2f9\uaca8\uc11c \uc0c8\ub85c\uace0\uce68 \uc2e4\ud589(BODY \ucd5c\ud558\ub2e8\uc5d0\uc11c \uc2e4\ud589 ) -->
+	<script type="text/javascript">
+		$(function() {
+			/* \ub2f9\uaca8\uc11c \uc0c8\ub85c\uace0\uce68 \uc2e4\ud589 */
+			UI.initPullToRefresh();
+		});
+	</script>
+	--%>
+	
+</body>
+</html>
+-e------ mainLayout
+
+
+
+
+
+-s------ tiles-def-fm.xml
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE tiles-definitions PUBLIC
+	   "-//Apache Software Foundation//DTD Tiles Configuration 3.0//EN"
+	   "http://tiles.apache.org/dtds/tiles-config_3_0.dtd">
+<tiles-definitions>
+	
+	<!-- _______________________________________________________________ -->
+	
+	<!-- ______________________________MOBILE___________________________ -->
+	
+	<!-- _______________________________________________________________ -->
+
+	
+	
+	<!-- \ud15c\ud50c\ub9bf Common -->
+	<definition name="commonLayout" template="/WEB-INF/jsp/pub/layout_fm/commonLayout.jsp">
+		<!-- header -->
+		<put-attribute name="pu_script_css"			value="/WEB-INF/jsp/pub/layout_fm/inc/pub_script_css.jsp" />
+		<put-attribute name="pu_script_UI"			value="/WEB-INF/jsp/pub/layout_fm/inc/pub_ui_script.jsp" /><!-- \ud37c\ube14 UI js import -->
+		<put-attribute name="pu_script_css_header"	value="/WEB-INF/jsp/pub/layout_fm/inc/pub_script_css_header.jsp" />
+		<put-attribute name="pu_script_css_etc"		value="" /><!-- \uac01 \uc5c5\ubb34\uc5d0 \ud544\uc694\ud55c js or css import -->
+		<put-attribute name="pu_script_variable"	value="/WEB-INF/jsp/pub/layout_fm/inc/pub_scriptVariable.jsp" />
+		<!-- body -->
+		<put-attribute name="popup"					value="/WEB-INF/jsp/pub/fm/common/inc/popup.jsp" />
+		<put-attribute name="header"				value="/WEB-INF/jsp/pub/fm/common/inc/header.jsp" />
+		<put-attribute name="header_search_layer"	value="/WEB-INF/jsp/pub/fm/common/inc/searchLayerPopup.jsp" />
+		<put-attribute name="body"					value="" />
+		<put-attribute name="footer"				value="/WEB-INF/jsp/pub/fm/common/inc/footer.jsp" />
+		<!-- common -->
+		<put-attribute name="pu_common_etc"			value="" /><!-- \uac01 \uc5c5\ubb34\uc5d0 \ud544\uc694\ud55c \uacf5\ud1b5 -->
+        <put-attribute name="pu_mc_lnb"				value="/WEB-INF/jsp/pub/fm/common/inc/lnb.jsp" />
+		<put-attribute name="pu_common"				value="/WEB-INF/jsp/pub/fm/common/inc/common.jsp" />
+	</definition>
+	
+	
+	<!-- \ud15c\ud50c\ub9bf main -->
+	<definition name="mainLayout" template="/WEB-INF/jsp/pub/layout_fm/mainLayout.jsp">
+		<!-- header -->
+		<put-attribute name="pu_script_css"			value="/WEB-INF/jsp/pub/layout_fm/inc/pub_script_css.jsp" />
+		<put-attribute name="pu_script_UI"			value="/WEB-INF/jsp/pub/layout_fm/inc/pub_ui_script.jsp" /><!-- \ud37c\ube14 UI js import -->
+		<put-attribute name="pu_script_css_header"	value="/WEB-INF/jsp/pub/layout_fm/inc/pub_script_css_header.jsp" />
+		<put-attribute name="pu_script_css_etc" 	value="/WEB-INF/jsp/pub/layout_fm/inc/pub_script_css_main.jsp" />
+		<put-attribute name="pu_script_variable"	value="/WEB-INF/jsp/pub/layout_fm/inc/pub_scriptVariable.jsp" />
+		<!-- body -->
+		<put-attribute name="popup"					value="/WEB-INF/jsp/pub/fm/common/inc/popup.jsp" />
+		<put-attribute name="tvShopGoodsArea"		value="/main/tvShopGoodsArea.do" /><!-- 1\ucc28 \ubc30\ud3ec \ud544\uc218 , \uc0ad\uc81c \uc608\uc815, \uc5d0TV\uc1fc\ud551+\uacf5\uc601\ub77c\ubc29+\uc804\uc2dc\uc0c1\ud488 -->
+		<put-attribute name="mainTopArea"			value="/main/mainTopArea.do" />
+		<put-attribute name="header"				value="/WEB-INF/jsp/pub/fm/common/inc/header.jsp" />
+		<put-attribute name="header_search_layer"	value="/WEB-INF/jsp/pub/fm/common/inc/searchLayerPopup.jsp" />
+		<put-attribute name="gnbMenu"				value="/WEB-INF/jsp/pub/fm/common/inc/gnb.jsp" /><!-- GNB\uba54\ub274 -->
+		<put-attribute name="template_01"			value="" />
+		<put-attribute name="template_02"			value="" />
+		<put-attribute name="template_03"			value="" />
+		<put-attribute name="template_04"			value="" />
+		<put-attribute name="template_05"			value="" />
+		<put-attribute name="body"					value="" />
+		<put-attribute name="footer"				value="/WEB-INF/jsp/pub/fm/common/inc/footer.jsp" />
+		<!-- common -->
+		<put-attribute name="pu_mc_lnb"				value="/lnb/index.do" />
+        <put-attribute name="pu_mc_lnb"				value="/WEB-INF/jsp/pub/fm/common/inc/lnb.jsp" />
+		<put-attribute name="pu_common"				value="/WEB-INF/jsp/pub/fm/common/inc/common.jsp" />
+	</definition>
+	
+	
+	<!-- \ud15c\ud50c\ub9bf main contents -->
+	<definition name="mainContsLayout" template="/WEB-INF/jsp/pub/layout_fm/mainContsLayout.jsp">
+		<put-attribute name="template_01"			value="" />
+		<put-attribute name="template_02"			value="" />
+		<put-attribute name="template_03"			value="" />
+		<put-attribute name="template_04"			value="" />
+		<put-attribute name="template_05"			value="" />
+		<put-attribute name="body"					value="" />
+	</definition>
+
+	
+	
+	<!--#######################################################
+	#  \ucd5c\ucd08 \uc9c4\uc785 \uc9c0\uc810
+	########################################################-->
+	<definition name="mainIndex"        template="netfunnel.jsp" />
+	
+	
+	
+	<!--#######################################################
+	#  error Layout
+	########################################################-->
+	<definition name="error/*.tiles" template="/WEB-INF/jsp/pub/fm/common/error/{1}.jsp" />
+
+
+	<!--#######################################################
+	#  None Short Form Layout
+	########################################################-->
+	<definition name="none/shortForm/*"    template="/WEB-INF/jsp/pub/fm/display/shortForm/{1}.jsp" >
+		<put-attribute name="pu_script_css"			value="/WEB-INF/jsp/pub/layout_fm/inc/pub_script_css.jsp" />
+		<put-attribute name="pu_script_UI"			value="/WEB-INF/jsp/pub/layout_fm/inc/pub_ui_script.jsp" />
+		<put-attribute name="pu_script_variable"	value="/WEB-INF/jsp/pub/layout_fm/inc/pub_scriptVariable.jsp" />
+	</definition>
+
+	<!--#######################################################
+	#  None Layout
+	########################################################-->
+	<definition name="none/*/*"        template="/WEB-INF/jsp/pub/fm/{1}/{2}.jsp" />
+	<definition name="none/*/*/*"      template="/WEB-INF/jsp/pub/fm/{1}/{2}/{3}.jsp" />
+	<definition name="none/*/*/*/*"    template="/WEB-INF/jsp/pub/fm/{1}/{2}/{3}/{4}.jsp" />
+
+	<!--#######################################################
+	# Common Layout
+	########################################################-->
+	<definition name="common/*/*.tiles" extends="commonLayout">
+		<put-attribute name="body" value="/WEB-INF/jsp/pub/fm/{1}/{2}.jsp" />
+	</definition>
+	<definition name="common/*/*/*.tiles" extends="commonLayout">
+		<put-attribute name="body" value="/WEB-INF/jsp/pub/fm/{1}/{2}/{3}.jsp" />
+	</definition>
+	<definition name="common/*/*/*/*.tiles" extends="commonLayout">
+		<put-attribute name="body" value="/WEB-INF/jsp/pub/fm/{1}/{2}/{3}/{4}.jsp" />
+	</definition>
+	
+	
+	<!--#######################################################
+	# Main Layout
+	########################################################-->
+	<definition name="main/*.tiles" extends="mainLayout">
+		<put-attribute name="body"		value="/WEB-INF/jsp/pub/fm/main/{1}.jsp" />
+	</definition>
+	<definition name="main/*/*.tiles" extends="mainLayout">
+		<put-attribute name="body"		value="/WEB-INF/jsp/pub/fm/main/{1}/{2}.jsp" />
+	</definition>
+	
+	
+	<!--#######################################################
+	# Main Template Layout
+	########################################################-->
+	<definition name="main/*.tiles/*/*/*/*/*/*" extends="mainLayout">
+		<put-attribute name="template_01"	value="/module/display/AjaxCnrTemplate.do?dispCatNo={2}&amp;cnrContsLnkSeqNo={3}" />
+		<put-attribute name="template_02"	value="/module/display/AjaxCnrTemplate.do?dispCatNo={2}&amp;cnrContsLnkSeqNo={4}" />
+		<put-attribute name="template_03"	value="/module/display/AjaxCnrTemplate.do?dispCatNo={2}&amp;cnrContsLnkSeqNo={5}" />
+		<put-attribute name="template_04"	value="/module/display/AjaxCnrTemplate.do?dispCatNo={2}&amp;cnrContsLnkSeqNo={6}" />
+		<put-attribute name="template_05"	value="/module/display/AjaxCnrTemplate.do?dispCatNo={2}&amp;cnrContsLnkSeqNo={7}" />
+		<put-attribute name="body"			value="/WEB-INF/jsp/pub/fm/main/{1}.jsp" />
+	</definition>
+	
+	
+	<!--#######################################################
+	# Mypage Layout
+	########################################################-->
+	<definition name="mypage/*/*.tiles" extends="commonLayout">
+		<put-attribute name="pu_script_css_etc"	value="/WEB-INF/jsp/pub/layout_fm/inc/pub_script_css_mypage.jsp" />
+		<put-attribute name="header" value="/WEB-INF/jsp/pub/fm/common/inc/header.jsp" />
+		<put-attribute name="body" value="/WEB-INF/jsp/pub/fm/mypage/{1}/{2}.jsp" />
+	</definition>
+	<definition name="mypage/*/*/*.tiles" extends="commonLayout">
+		<put-attribute name="pu_script_css_etc"	value="/WEB-INF/jsp/pub/layout_fm/inc/pub_script_css_mypage.jsp" />
+		<put-attribute name="body" value="/WEB-INF/jsp/pub/fm/mypage/{1}/{2}/{3}.jsp" />
+	</definition>
+	
+	
+	<!--#######################################################
+	# etc Layout
+	########################################################-->
+	<definition name="etc/*/*.tiles" extends="commonLayout">
+		<put-attribute name="body" value="/WEB-INF/jsp/pub/fm/etc/{1}/{2}.jsp" />
+	</definition>
+	
+	
+	<!--#######################################################
+	# \uace0\uac1d\uc13c\ud130 Layout
+	########################################################-->
+	<definition name="customercenter/*/*.tiles" extends="commonLayout">
+		<put-attribute name="pu_script_css_etc"	value="/WEB-INF/jsp/pub/layout_fm/inc/pub_script_css_customer.jsp" />
+		<put-attribute name="body" value="/WEB-INF/jsp/pub/fm/customercenter/{1}/{2}.jsp" />
+	</definition>
+	
+	<!--#######################################################
+	# \uae30\ud68d\uc804 Layout
+	########################################################-->
+	<definition name="exhibition/*.tiles" extends="commonLayout">
+		<put-attribute name="body" value="/WEB-INF/jsp/pub/fm/exhibition/{1}.jsp" />
+	</definition>
+	
+	<!--#######################################################
+	# \uc774\ubca4\ud2b8 Layout
+	########################################################-->
+	<definition name="event/*.tiles" extends="commonLayout">
+		<put-attribute name="pu_script_css_etc" value="/WEB-INF/jsp/pub/layout_fm/inc/pub_script_css_event.jsp" />
+		<put-attribute name="body" value="/WEB-INF/jsp/pub/fm/event/{1}.jsp" />
+	</definition>
+	<definition name="event/*/*.tiles" extends="commonLayout">
+		<put-attribute name="pu_script_css_etc" value="/WEB-INF/jsp/pub/layout_fm/inc/pub_script_css_event.jsp" />
+		<put-attribute name="body" value="/WEB-INF/jsp/pub/fm/event/{1}/{2}.jsp" />
+	</definition>
+	
+	<!--#######################################################
+	# TV\uc1fc\ud551 Layout
+	########################################################-->
+	<definition name="tvshopping/*.tiles" extends="commonLayout">
+		<put-attribute name="body" value="/WEB-INF/jsp/pub/fm/tvshopping/{1}.jsp" />
+	</definition>
+	<definition name="tvShoppin.main/*.tiles/*/*/*/*/*/*" extends="mainContsLayout">
+		<put-attribute name="template_01"	value="/module/display/AjaxCnrTemplate.do?dispCatNo={2}&amp;cnrContsLnkSeqNo={3}" />
+		<put-attribute name="template_02"	value="/module/display/AjaxCnrTemplate.do?dispCatNo={2}&amp;cnrContsLnkSeqNo={4}" />
+		<put-attribute name="template_03"	value="/module/display/AjaxCnrTemplate.do?dispCatNo={2}&amp;cnrContsLnkSeqNo={5}" />
+		<put-attribute name="template_04"	value="/module/display/AjaxCnrTemplate.do?dispCatNo={2}&amp;cnrContsLnkSeqNo={6}" />
+		<put-attribute name="template_05"	value="/module/display/AjaxCnrTemplate.do?dispCatNo={2}&amp;cnrContsLnkSeqNo={7}" />
+		<put-attribute name="body"			value="/WEB-INF/jsp/pub/fm/tvshopping/{1}.jsp" />
+	</definition>
+	
+	
+	<!--#######################################################
+    # \uacf5\uc601\ub77c\ubc29 Layout
+    ########################################################-->
+    <definition name="mlc/*.tiles" extends="commonLayout">
+        <put-attribute name="body" value="/WEB-INF/jsp/pub/fm/mlc/{1}.jsp" />
+    </definition>
+    <definition name="mlc/*/*.tiles" extends="commonLayout">
+        <put-attribute name="body" value="/WEB-INF/jsp/pub/fm/mlc/{1}/{2}.jsp" />
+    </definition>
+    <definition name="mlc.main/*.tiles/*/*/*/*/*/*" extends="mainContsLayout">
+		<put-attribute name="template_01"	value="/module/display/AjaxCnrTemplate.do?dispCatNo={2}&amp;cnrContsLnkSeqNo={3}" />
+		<put-attribute name="template_02"	value="/module/display/AjaxCnrTemplate.do?dispCatNo={2}&amp;cnrContsLnkSeqNo={4}" />
+		<put-attribute name="template_03"	value="/module/display/AjaxCnrTemplate.do?dispCatNo={2}&amp;cnrContsLnkSeqNo={5}" />
+		<put-attribute name="template_04"	value="/module/display/AjaxCnrTemplate.do?dispCatNo={2}&amp;cnrContsLnkSeqNo={6}" />
+		<put-attribute name="template_05"	value="/module/display/AjaxCnrTemplate.do?dispCatNo={2}&amp;cnrContsLnkSeqNo={7}" />
+		<put-attribute name="body"			value="/WEB-INF/jsp/pub/fm/mlc/{1}.jsp" />
+	</definition>
+    
+    
+    <!--#######################################################
+    # \uc804\ubb38\uad00 Layout
+    ########################################################-->
+    <definition name="specialshop/*.tiles" extends="commonLayout">
+        <put-attribute name="body" value="/WEB-INF/jsp/pub/fm/specialshop/{1}.jsp" />
+    </definition>
+	
+	
+	<!--#######################################################
+	# \uc0c1\ud488\uc0c1\uc138 Layout
+	########################################################-->
+	<definition name="goods/*.tiles" extends="commonLayout">
+		<!-- <put-attribute name="header"			value="/WEB-INF/jsp/pub/fm/common/inc/headerTemplate/type_subnavi.jsp" /> -->
+		<put-attribute name="pu_script_css_etc" value="/WEB-INF/jsp/pub/layout_fm/inc/pub_script_css_goods.jsp" />
+		<put-attribute name="body" 				value="/WEB-INF/jsp/pub/fm/goods/{1}.jsp" />
+		<put-attribute name="pu_common_etc" 	value="/WEB-INF/jsp/pub/fm/goods/commonlayer.jsp" />
+		<put-attribute name="pu_mc_lnb"				value="" />
+	</definition>
+	
+	<!--#######################################################
+	# \uc0c1\ud488 \uce74\ud14c\uace0\ub9ac Layout
+	########################################################-->
+	<definition name="category/*.tiles" extends="commonLayout">
+		<put-attribute name="body" value="/WEB-INF/jsp/pub/fm/display/category/{1}.jsp" />
+	</definition>
+	
+	
+	
+    
+	<!--#######################################################
+	# \uac80\uc0c9 Layout
+	########################################################-->
+	<definition name="search/*.tiles" extends="commonLayout">
+		<put-attribute name="pu_script_css_etc" value="/WEB-INF/jsp/pub/layout_fm/inc/pub_script_css_search.jsp" />
+		<put-attribute name="body" value="/WEB-INF/jsp/pub/fm/search/{1}.jsp" />
+	</definition>
+	
+	<!--#######################################################
+	# \ubca0\uc2a4\ud2b8(\ub7ad\ud0b9) Layout
+	########################################################-->
+	<definition name="best/*.tiles" extends="commonLayout">
+		<put-attribute name="body" value="/WEB-INF/jsp/pub/fm/display/best/{1}.jsp" />
+	</definition>
+	
+	<!--#######################################################
+	# \uacf5\uc601\ub51c Layout
+	########################################################-->
+	<definition name="imdeal/*.tiles" extends="commonLayout">
+		<put-attribute name="body" value="/WEB-INF/jsp/pub/fm/display/imdeal/{1}.jsp" />
+	</definition>
+	
+	<!--#######################################################
+	# \ud0c0\uc784\ub51c Layout
+	########################################################-->
+	<definition name="timedeal/*.tiles" extends="commonLayout">
+		<put-attribute name="body" value="/WEB-INF/jsp/pub/fm/display/timedeal/{1}.jsp" />
+	</definition>
+	
+	<!--#######################################################
+	# \uc7a5\ubc14\uad6c\ub2c8 Layout
+	########################################################-->
+	<definition name="cart/*.tiles" extends="commonLayout">
+		<put-attribute name="pu_script_css_etc" value="/WEB-INF/jsp/pub/layout_fm/inc/pub_script_css_cart.jsp" />
+		<put-attribute name="body" value="/WEB-INF/jsp/pub/fm/cart/{1}.jsp" />
+		<put-attribute name="pu_mc_lnb"				value="" />
+	</definition>
+	
+	<!--#######################################################
+	# \ud14c\ub9c8\uc0f5 Layout
+	########################################################-->
+	<definition name="themeshop/*.tiles" extends="commonLayout">
+		<put-attribute name="pu_script_css_etc" value="/WEB-INF/jsp/pub/layout_fm/inc/pub_script_css_themeshop.jsp" />
+		<put-attribute name="body" value="/WEB-INF/jsp/pub/fm/display/themeshop/{1}.jsp" />
+	</definition>
+	
+	<!--#######################################################
+	# \ud14c\ub9c8 TAB Layout
+	########################################################-->
+	<definition name="themetab/*.tiles" extends="commonLayout">
+		<put-attribute name="pu_script_css_etc" value="/WEB-INF/jsp/pub/layout_fm/inc/pub_script_css_themetab.jsp" />
+		<put-attribute name="body" value="/WEB-INF/jsp/pub/fm/display/themetab/{1}.jsp" />
+	</definition>
+	
+	<!--#######################################################
+	# \ud61c\ud0dd\uc0c1\ud488 TAB Layout
+	########################################################-->
+	<definition name="promotionGoods/*.tiles" extends="commonLayout">
+		<put-attribute name="body" value="/WEB-INF/jsp/pub/fm/display/promotionGoods/{1}.jsp" />
+	</definition>
+
+
+
+
+
+
+
+    <!--#######################################################
+    # \uc8fc\ubb38 \uce74\ud14c\uace0\ub9ac Layout
+    ########################################################-->    
+    <definition name="order/*.tiles"        extends="commonLayout">        
+        <put-attribute name="pu_script_css_etc" value="/WEB-INF/jsp/pub/layout_fm/inc/pub_script_css_order.jsp" />
+        <put-attribute name="body"              value="/WEB-INF/jsp/pub/fm/order/{1}.jsp" />        
+        <put-attribute name="pu_common_etc"     value="/WEB-INF/jsp/pub/layout_fm/inc/pub_common_etc_order.jsp" />        
+        <put-attribute name="pu_mc_lnb"             value="" />
+    </definition>      
+    <definition name="order/*/*.tiles"        extends="commonLayout">        
+        <put-attribute name="pu_script_css_etc" value="/WEB-INF/jsp/pub/layout_fm/inc/pub_script_css_order.jsp" />
+        <put-attribute name="body"              value="/WEB-INF/jsp/pub/fm/{1}/{2}.jsp" />        
+        <put-attribute name="pu_common_etc"     value="/WEB-INF/jsp/pub/layout_fm/inc/pub_common_etc_order.jsp" />
+        <!-- <put-attribute name="pu_mc_lnb"         value="" /> -->
+    </definition>      
+    <definition name="renew/*/*.tiles"  extends="commonLayout">                
+        <put-attribute name="pu_script_css_etc" value="/WEB-INF/jsp/pub/layout_fm/inc/pub_script_css_order.jsp" />        
+        <put-attribute name="body"              value="/WEB-INF/jsp/pub/fm/{1}/{2}.jsp" />        
+        <put-attribute name="pu_common_etc"     value="/WEB-INF/jsp/pub/layout_fm/inc/pub_common_etc_order.jsp" />
+        <put-attribute name="pu_mc_lnb"			value="" />
+    </definition>
+    <definition name="renew/*/*/*.tiles"  extends="commonLayout">                
+        <put-attribute name="pu_script_css_etc" value="/WEB-INF/jsp/pub/layout_fm/inc/pub_script_css_order.jsp" />        
+        <put-attribute name="body"              value="/WEB-INF/jsp/pub/fm/{1}/{2}/{3}.jsp" />        
+        <put-attribute name="pu_common_etc"     value="/WEB-INF/jsp/pub/layout_fm/inc/pub_common_etc_order.jsp" />
+        <put-attribute name="pu_mc_lnb"			value="" />
+    </definition>    
+    <definition name="orderpopup/*/*.tiles"    extends="commonLayout" >
+       <put-attribute name="pu_script_css_etc" value="/WEB-INF/jsp/pub/layout_fm/inc/pub_script_css_order.jsp" />       
+       <put-attribute name="body"              value="/WEB-INF/jsp/pub/fm/{1}/{2}.jsp" />
+       <put-attribute name="pu_common_etc"     value="/WEB-INF/jsp/pub/layout_fm/inc/pub_common_etc_order.jsp" />
+       <put-attribute name="pu_mc_lnb"			value="" />
+    </definition>
+       <definition name="orderpopup/*/*/*.tiles"    extends="commonLayout" >
+       <put-attribute name="pu_script_css_etc" value="/WEB-INF/jsp/pub/layout_fm/inc/pub_script_css_order.jsp" />       
+       <put-attribute name="body"              value="/WEB-INF/jsp/pub/fm/{1}/{2}/{3}.jsp" />
+       <put-attribute name="pu_common_etc"     value="/WEB-INF/jsp/pub/layout_fm/inc/pub_common_etc_order.jsp" />
+       <put-attribute name="pu_mc_lnb"			value="" />
+    </definition>    
+    <definition name="orderpopup/*/*/*/*.tiles"    extends="commonLayout" >
+       <put-attribute name="pu_script_css_etc" value="/WEB-INF/jsp/pub/layout_fm/inc/pub_script_css_order.jsp" />       
+       <put-attribute name="body"              value="/WEB-INF/jsp/pub/fm/{1}/{2}/{3}/{4}.jsp" />
+       <put-attribute name="pu_common_etc"     value="/WEB-INF/jsp/pub/layout_fm/inc/pub_common_etc_order.jsp" />
+       <put-attribute name="pu_mc_lnb"			value="" />
+    </definition>
+    
+    
+    
+    <!--#######################################################
+    # \uc8fc\ubb38 \ub9ac\uc2a4\ud2b8 Layout
+    ########################################################--> 
+    <!-- EC Layout Lnb \ud638\ucd9c\ubd80\ub97c \ub9de\ucd94\uae30 \uc704\ud55c \uc911\ubcf5 \uc120\uc5b8 (renew/lnb) -->
+    <definition name="renew/lnb/*/*.tiles" extends="commonLayout">
+        <put-attribute name="pu_script_css_etc" value="/WEB-INF/jsp/pub/layout_fm/inc/pub_script_css_order.jsp" />
+        <put-attribute name="body"              value="/WEB-INF/jsp/pub/fm/{1}/{2}.jsp" />
+        <put-attribute name="pu_common_etc"     value="/WEB-INF/jsp/pub/layout_fm/inc/pub_common_etc_order.jsp" />
+        <!-- <put-attribute name="pu_mc_lnb"			value="" /> -->
+    </definition>
+
+    <definition name="renew/lnb/*/*/*.tiles" extends="commonLayout">
+        <put-attribute name="pu_script_css_etc" value="/WEB-INF/jsp/pub/layout_fm/inc/pub_script_css_order.jsp" />
+        <put-attribute name="body"              value="/WEB-INF/jsp/pub/fm/{1}/{2}/{3}.jsp" />
+        <put-attribute name="pu_common_etc"     value="/WEB-INF/jsp/pub/layout_fm/inc/pub_common_etc_order.jsp" />
+        <!-- <put-attribute name="pu_mc_lnb"			value="" /> -->
+    </definition>
+    <!-- //EC Layout Lnb \ud638\ucd9c\ubd80\ub97c \ub9de\ucd94\uae30 \uc704\ud55c \uc911\ubcf5 \uc120\uc5b8 (renew/lnb) -->
+
+
+
+
+
+	<!--#######################################################
+	# window open popup Layout
+	########################################################-->
+	<definition name="openpopup/*.tiles" extends="commonLayout">
+		<put-attribute name="header"				value="" />
+		<put-attribute name="body"		value="/WEB-INF/jsp/pub/fm/{1}.jsp" />
+		<put-attribute name="footer"				value="" />
+		<put-attribute name="pu_mc_lnb"				value="" />
+	</definition>
+	<definition name="openpopup/*/*.tiles" extends="commonLayout">
+		<put-attribute name="header"				value="" />
+		<put-attribute name="body"		value="/WEB-INF/jsp/pub/fm/{1}/{2}.jsp" />
+		<put-attribute name="footer"				value="" />
+		<put-attribute name="pu_mc_lnb"				value="" />
+	</definition>
+	<definition name="openpopup/*/*/*.tiles" extends="commonLayout">
+		<put-attribute name="header"				value="" />
+		<put-attribute name="body"		value="/WEB-INF/jsp/pub/fm/{1}/{2}/{3}.jsp" />
+		<put-attribute name="footer"				value="" />
+		<put-attribute name="pu_mc_lnb"				value="" />
+	</definition>
+	
+	<!--#######################################################
+	# window open popup Layout
+	########################################################-->
+	<definition name="windowopen/*.tiles" extends="commonLayout">
+		<put-attribute name="header"		value="" />
+		<put-attribute name="body"			value="/WEB-INF/jsp/pub/fm/{1}.jsp" />
+		<put-attribute name="footer"		value="" />
+		<put-attribute name="pu_mc_lnb"		value="" />
+	</definition>
+	<definition name="windowopen/*/*.tiles" extends="commonLayout">
+		<put-attribute name="header"		value="" />
+		<put-attribute name="body"			value="/WEB-INF/jsp/pub/fm/{1}/{2}.jsp" />
+		<put-attribute name="footer"		value="" />
+		<put-attribute name="pu_mc_lnb"		value="" />
+	</definition>
+	<definition name="windowopen/*/*/*.tiles" extends="commonLayout">
+		<put-attribute name="header"		value="" />
+		<put-attribute name="body"			value="/WEB-INF/jsp/pub/fm/{1}/{2}/{3}.jsp" />
+		<put-attribute name="footer"		value="" />
+		<put-attribute name="pu_mc_lnb"		value="" />
+	</definition>
+	
+	<!--#######################################################
+	# iframe Layout
+	########################################################-->
+	<definition name="iframe/*.tiles" extends="commonLayout">
+		<put-attribute name="pu_script_UI"	value="" />
+		<put-attribute name="header"		value="" />
+		<put-attribute name="body"			value="/WEB-INF/jsp/pub/fm/{1}.jsp" />
+		<put-attribute name="footer"		value="" />
+		<put-attribute name="pu_common"		value="/WEB-INF/jsp/pub/fm/common/inc/common.jsp" />
+		<put-attribute name="pu_mc_lnb"		value="" />
+	</definition>
+	<definition name="iframe/*/*.tiles" extends="commonLayout">
+		<put-attribute name="pu_script_UI"	value="" />
+		<put-attribute name="header"		value="" />
+		<put-attribute name="body"			value="/WEB-INF/jsp/pub/fm/{1}/{2}.jsp" />
+		<put-attribute name="footer"		value="" />
+		<put-attribute name="pu_common"		value="/WEB-INF/jsp/pub/fm/common/inc/common.jsp" />
+		<put-attribute name="pu_mc_lnb"		value="" />
+	</definition>
+	<definition name="iframe/*/*/*.tiles" extends="commonLayout">
+		<put-attribute name="pu_script_UI"	value="" />
+		<put-attribute name="header"		value="" />
+		<put-attribute name="body"			value="/WEB-INF/jsp/pub/fm/{1}/{2}/{3}.jsp" />
+		<put-attribute name="footer"		value="" />
+		<put-attribute name="pu_common"	 	value="/WEB-INF/jsp/pub/fm/common/inc/common.jsp" />
+		<put-attribute name="pu_mc_lnb"		value="" />
+	</definition>
+	
+	
+	<!--#######################################################
+	# nofooter Layout
+	########################################################-->
+	<definition name="nofooter/*.tiles" extends="commonLayout">
+		<put-attribute name="body"		value="/WEB-INF/jsp/pub/fm/{1}.jsp" />
+		<put-attribute name="pu_mc_lnb"	value="" />
+		<put-attribute name="footer"	value="" />
+	</definition>
+	<definition name="nofooter/*/*.tiles" extends="commonLayout">
+		<put-attribute name="body"		value="/WEB-INF/jsp/pub/fm/{1}/{2}.jsp" />
+		<put-attribute name="pu_mc_lnb"	value="" />
+		<put-attribute name="footer"	value="" />
+	</definition>
+	<definition name="nofooter/*/*/*.tiles" extends="commonLayout">
+		<put-attribute name="body"		value="/WEB-INF/jsp/pub/fm/{1}/{2}/{3}.jsp" />
+		<put-attribute name="pu_mc_lnb"	value="" />
+		<put-attribute name="footer"	value="" />
+	</definition>
+	
+</tiles-definitions>
+-e------ tiles-def-fm.xml
