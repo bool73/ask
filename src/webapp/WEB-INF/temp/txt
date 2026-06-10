@@ -1,1 +1,98 @@
-test 1234
+with assmList as (
+
+        SELECT G.GOODS_NO AS PRD_ID /* 상품번호 */ 
+            , GSA.goods_assmt_cnt
+            , ROUND(GSA.AVG_STFD_VAL) AS AVG_STFD_VAL
+            , NVL(TRUNC((GSA.AVG_STFD_VAL - 50) / 10  + 0.09 ,1),0)  AS AVG_VAL_FIVE
+        FROM TF_GOODS_RETRV G 
+        INNER JOIN TF_GOODS_RETRV_EXT GRE 
+            ON(G.GOODS_NO = GRE.GOODS_NO AND GRE.STK_SOLD_YN = 'N') /* 상품평수 순( 집계 90일 ) */ 
+        INNER JOIN (SELECT 
+                        GOODS_NO
+                        , NVL(SUM(DECODE(DEL_YN, 'N', DECODE(DISP_YN, 'Y', 1, 0), 0)), 0) GOODS_ASSMT_CNT 
+                        , SUM (AVG_STFD_VAL)/COUNT(*) AS AVG_STFD_VAL
+                    FROM TF_GOODS_ASSMT 
+                    --WHERE MOD_DTIME > TRUNC(SYSDATE) - 7 GROUP BY GOODS_NO 
+                    WHERE MOD_DTIME > TRUNC(SYSDATE) - 800 GROUP BY GOODS_NO
+                    --WHERE MOD_DTIME > TRUNC(to_date('24/01/01')) GROUP BY GOODS_NO 
+                    ) GSA 
+            ON GSA.GOODS_NO = G.GOODS_NO 
+        WHERE 1=1 
+        AND G.DEL_YN = 'N' 
+        AND G.SALE_STAT_CD = '110' /*판매_상태_코드(110=판매가능, 120=일시품절, 130=판매불가)*/
+        AND NVL(G.ONL_PRD_TYP_CD, '100') != '300' 
+        AND SYSDATE BETWEEN G.SALE_PRC_STRT_DTIME AND G.SALE_PRC_END_DTIME 
+        AND G.EMP_GOODS_YN = 'N' 
+        --AND 95 <= GSA.AVG_STFD_VAL --테스트시에는 데이터 없으므로 임시주석처리
+)
+
+SELECT 
+    ROWNUM AS NUM
+    ,A.*
+FROM 
+(
+    SELECT 
+         NVL(ORD.ORD_AMT,0) - NVL(ORD.CNCL_AMT,0) AS TOTAL_AMT /*정렬조건걸려있으므로 순서 변경 안됨*/
+        , SCRK.TMP_PSS_STCK_QTY
+        ,GSA.*
+        
+    FROM assmList GSA
+    /* 재고 */
+    ,(
+        select 
+            PU.PRD_ID
+            , sum(FN_LO_PSS_STCK_QTY(NULL, PU.PRD_ID, PU.UNT_ID, '110')) as TMP_PSS_STCK_QTY 
+           -- ,GSA.*
+        from
+            assmList GSA
+            , tb_pd_unt PU
+        WHERE GSA.PRD_ID = PU.PRD_ID 
+        group by PU.prd_id
+    ) SCRK
+    /*판매가 */
+    , (
+           SELECT
+                A.PRD_ID                                                                                 AS PRD_ID             --상품_ID
+               --, A.MDA_CD                                                                                 AS MDA_CD             --매체_코드
+               --, A.CHNL_ID                                                                                AS CHNL_ID            --채널_ID
+               --, A.CHNL_DTL_ID                                                                            AS CHNL_DTL_ID        --채널_상세_ID
+               --, B.ORD_INFLX_PT_CD                                                                        AS ORD_INFLX_PT_CD    --주문_유입_경로_코드
+               , SUM(CASE WHEN A.ORD_RTN_TYP_CD = '100' THEN A.ORD_QTY                   ELSE 0 END)      AS ORD_QTY            --주문_수량
+               , SUM(CASE WHEN A.ORD_RTN_TYP_CD = '100' THEN A.ORD_UPRC      * A.ORD_QTY ELSE 0 END)      AS ORD_AMT            --주문_금액
+               , SUM(CASE WHEN A.ORD_RTN_TYP_CD = '100'
+                               AND SUBSTR(A.ORD_STS_CD, 3, 2) = '90' THEN A.ORD_QTY
+                          ELSE 0 END)                                                                     AS CNCL_QTY            --취소_수량
+               , SUM(CASE WHEN A.ORD_RTN_TYP_CD = '100'
+                                 AND SUBSTR(A.ORD_STS_CD, 3, 2) = '90' THEN A.ORD_UPRC      * A.ORD_QTY
+                          ELSE 0 END)                                                                     AS CNCL_AMT            --취소_금액                       
+           FROM assmList GSA
+                ,TB_OD_ORD_PRD A
+                , TB_OD_ORD B
+           WHERE 1=1
+            AND GSA.PRD_ID = A.PRD_ID 
+            AND A.ORD_ID   = B.ORD_ID
+           --AND PRD_ID = '11582815'
+           -- AND TRUNC(INST_DTM) = TRUNC(TO_DATE('26/06/09'))
+            AND B.INST_DTM > TRUNC(SYSDATE-30)
+          -- AND B.INST_DTM       >= TRUNC(TO_DATE(SYSDATE) -1) 
+           -- AND B.INST_DTM       <  TRUNC(TO_DATE(SYSDATE))
+           AND A.ORD_RTN_TYP_CD =  '100' /* 주문:100, 반품:200, 교환:300, 교환반품:400, AS:500*/
+           AND A.GFT_YN         = 'N' -- 사은품여부
+           AND A.CHNL_ID IN ('1011','1012','1013')
+           AND NOT EXISTS
+             (SELECT 'X'
+                FROM TB_CM_CODE_DTL C
+               WHERE C.CD     =  'TST_PRD_CD'
+                 AND A.PRD_ID =  TO_NUMBER(C.CD_VAL)
+             ) -- 테스트상품제외 
+        GROUP BY  A.PRD_ID  --, A.MDA_CD,A.CHNL_ID  , A.CHNL_DTL_ID 
+    ) ORD
+    WHERE 1=1
+    AND GSA.PRD_ID = SCRK.PRD_ID(+)
+    AND GSA.PRD_ID = ORD.PRD_ID(+)
+    AND 5 <= SCRK.TMP_PSS_STCK_QTY 
+    --SCRK.PRD_ID = ORD.PRD_ID 
+    ORDER BY GSA.AVG_STFD_VAL DESC, GSA.GOODS_ASSMT_CNT DESC, 2 DESC
+)A 
+WHERE ROWNUM <= 15 
+;
