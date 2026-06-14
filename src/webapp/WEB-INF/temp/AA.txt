@@ -1,0 +1,119 @@
+제시해주신 쿼리는 전형적인 대용량 배치성 집계/조인 쿼리로 보입니다. 현재 작성된 형태에서 성능을 크게 떨어뜨리는 몇 가지 명확한 원인(Bottleneck)들이 눈에 띕니다.
+
+가장 치명적인 부분들을 짚어내고, 이를 개선한 튜닝 쿼리와 원인 분석을 정리해 드립니다.
+
+1. 핵심 튜닝 포인트 (원인 분석)
+① 반복되는 WITH 절 (assmList) 참조로 인한 중복 연산
+현재 assmList가 메인 쿼리, SCRK 인라인 뷰, ORD 인라인 뷰까지 총 3번 호출되고 있습니다.
+Oracle에서 WITH 절은 기본적으로 인라인 뷰처럼 동작하여 호출될 때마다 반복 연산(또는 임시 테이블 생성)을 수행합니다. 특히 assmList 내부의 TF_GOODS_ASSMT 테이블은 800일 치 데이터를 Full Scan 하거나 인덱스 범위를 크게 읽어 GROUP BY하고 있어, 이를 3번 반복하는 것은 엄청난 낭비입니다.
+
+해결책: 메인 뷰에서 한 번만 읽고 하위 인라인 뷰에서는 assmList 조인을 제거합니다.
+
+② SCRK 인라인 뷰 내의 스칼라 함수 (FN_LO_PSS_STCK_QTY) 호출
+sum(FN_LO_PSS_STCK_QTY(...))와 같이 대량의 데이터를 GROUP BY 하면서 사용자 정의 함수(PL/SQL)를 호출하고 있습니다. 만약 tb_pd_unt 행이 많다면 context switching(SQL↔PL/SQL)으로 인해 심각한 CPU 병목이 발생합니다.
+
+해결책: 1차적으로 assmList에서 걸러진 상품 ID(PRD_ID)에 대해서만 함수가 실행되도록 조인 구조를 변경하거나, 함수 내부 로직을 쿼리로 풀어서 조인하는 것이 가장 좋습니다. (여기서는 쿼리 구조상 assmList 중복 제거로 호출 횟수를 대폭 줄이도록 유도합니다.)
+
+③ OUTER JOIN 조건절 위치 오류 (성능 및 데이터 정합성 문제)
+메인 쿼리 아래쪽을 보면 GSA.PRD_ID = SCRK.PRD_ID(+)로 아우터 조인을 걸어놓고, 바로 아래 AND 5 <= SCRK.TMP_PSS_STCK_QTY 조건 때문에 아우터 조인이 일반 이너 조인(Inner Join)으로 변해버렸습니다. (재고가 없는 상품은 아우터 조인되었다가 null <= 5 조건에서 탈락함)
+
+해결책: 어차피 재고가 5개 이상인 상품만 볼 거라면 (+)를 빼고 명확히 Inner Join으로 바꾸거나, 진짜 아우터 조인이 필요하다면 (SCRK.TMP_PSS_STCK_QTY >= 5 OR SCRK.TMP_PSS_STCK_QTY IS NULL) 형태로 변경해야 합니다. 정황상 재고 5개 이상만 보는 Inner Join이 맞으므로 (+)를 제거합니다.
+
+④ 묵시적 형변환 및 인덱스 미사용 위험
+ORD 인라인 뷰 내 NOT EXISTS 절을 보면 A.PRD_ID = TO_NUMBER(C.CD_VAL) 조건이 있습니다. PRD_ID가 숫자형인지 문자형인지에 따라 TB_CM_CODE_DTL의 인덱스를 타지 못할 수 있습니다.
+
+2. 튜닝된 SQL 문
+위의 문제점들을 수정하여 assmList 조인을 최소화하고 조인 구조를 최적화한 쿼리입니다.
+
+SQL
+WITH assmList AS (
+    SELECT /*+ MATERIALIZE */ 
+           G.GOODS_NO AS PRD_ID /* 상품번호 */ 
+         , GSA.goods_assmt_cnt
+         , ROUND(GSA.AVG_STFD_VAL) AS AVG_STFD_VAL
+         , NVL(TRUNC((GSA.AVG_STFD_VAL - 50) / 10 + 0.09, 1), 0) AS AVG_VAL_FIVE
+    FROM TF_GOODS_RETRV G 
+    INNER JOIN TF_GOODS_RETRV_EXT GRE 
+        ON (G.GOODS_NO = GRE.GOODS_NO AND GRE.STK_SOLD_YN = 'N') 
+    INNER JOIN (
+        SELECT GOODS_NO
+             , NVL(SUM(DECODE(DEL_YN, 'N', DECODE(DISP_YN, 'Y', 1, 0), 0)), 0) AS GOODS_ASSMT_CNT 
+             , SUM(AVG_STFD_VAL)/COUNT(*) AS AVG_STFD_VAL
+        FROM TF_GOODS_ASSMT 
+        WHERE MOD_DTIME > TRUNC(SYSDATE) - 800 
+        GROUP BY GOODS_NO
+    ) GSA ON GSA.GOODS_NO = G.GOODS_NO 
+    WHERE G.DEL_YN = 'N' 
+      AND G.SALE_STAT_CD = '110' 
+      AND NVL(G.ONL_PRD_TYP_CD, '100') != '300' 
+      AND SYSDATE BETWEEN G.SALE_PRC_STRT_DTIME AND G.SALE_PRC_END_DTIME 
+      AND G.EMP_GOODS_YN = 'N' 
+)
+SELECT NUM, TOTAL_AMT, TMP_PSS_STCK_QTY, PRD_ID, GOODS_ASSMT_CNT, AVG_STFD_VAL, AVG_VAL_FIVE
+FROM (
+    SELECT ROWNUM AS NUM, A.*
+    FROM (
+        SELECT NVL(ORD.ORD_AMT, 0) - NVL(ORD.CNCL_AMT, 0) AS TOTAL_AMT
+             , SCRK.TMP_PSS_STCK_QTY
+             , GSA.PRD_ID
+             , GSA.GOODS_ASSMT_CNT
+             , GSA.AVG_STFD_VAL
+             , GSA.AVG_VAL_FIVE
+        FROM assmList GSA
+        /* 1. 재고: 하위 뷰에서 assmList 중복 조인 제거, 대신 메인에서 Inner Join으로 변경 */
+        INNER JOIN (
+            SELECT PU.PRD_ID
+                 , SUM(FN_LO_PSS_STCK_QTY(NULL, PU.PRD_ID, PU.UNT_ID, '110')) AS TMP_PSS_STCK_QTY 
+            FROM tb_pd_unt PU
+            GROUP BY PU.PRD_ID
+        ) SCRK ON GSA.PRD_ID = SCRK.PRD_ID AND SCRK.TMP_PSS_STCK_QTY >= 5
+        /* 2. 판매가/주문: 하위 뷰에서 assmList 중복 조인 제거 */
+        LEFT OUTER JOIN (
+            SELECT A.PRD_ID
+                 , SUM(CASE WHEN A.ORD_RTN_TYP_CD = '100' THEN A.ORD_QTY ELSE 0 END) AS ORD_QTY
+                 , SUM(CASE WHEN A.ORD_RTN_TYP_CD = '100' THEN A.ORD_UPRC * A.ORD_QTY ELSE 0 END) AS ORD_AMT
+                 , SUM(CASE WHEN A.ORD_RTN_TYP_CD = '100' AND SUBSTR(A.ORD_STS_CD, 3, 2) = '90' THEN A.ORD_QTY ELSE 0 END) AS CNCL_QTY
+                 , SUM(CASE WHEN A.ORD_RTN_TYP_CD = '100' AND SUBSTR(A.ORD_STS_CD, 3, 2) = '90' THEN A.ORD_UPRC * A.ORD_QTY ELSE 0 END) AS CNCL_AMT                       
+            FROM TB_OD_ORD_PRD A
+            INNER JOIN TB_OD_ORD B ON A.ORD_ID = B.ORD_ID
+            WHERE B.INST_DTM > TRUNC(SYSDATE - 30)
+              AND A.ORD_RTN_TYP_CD = '100'
+              AND A.GFT_YN = 'N'
+              AND A.CHNL_ID IN ('1011', '1012', '1013')
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM TB_CM_CODE_DTL C
+                  WHERE C.CD = 'TST_PRD_CD'
+                    AND C.CD_VAL = TO_CHAR(A.PRD_ID) -- 인덱스 활용을 위해 변수를 문자형으로 치환 유도 (테이블 컬럼 타입에 맞출 것)
+              )
+            GROUP BY A.PRD_ID
+        ) ORD ON GSA.PRD_ID = ORD.PRD_ID
+        ORDER BY GSA.AVG_STFD_VAL DESC, GSA.GOODS_ASSMT_CNT DESC, SCRK.TMP_PSS_STCK_QTY DESC
+    ) A
+    WHERE ROWNUM <= 15
+);
+3. 핵심 변경 사항 설명
+/*+ MATERIALIZE */ 힌트 추가
+
+WITH 절(assmList)의 연산 결과가 대량이고 2번 이상 쓰이므로, 오라클이 이를 임시 테이블(Global Temporary Table)처럼 메모리/임시 디스크에 저장한 뒤 재사용하도록 강제했습니다. 이로 인해 대용량 집계가 단 1번만 수행됩니다.
+
+SCRK 및 ORD 내부의 assmList 조인 제거
+
+기존 쿼리는 서브쿼리 내부에서 assmList를 또 조인해서 풀 스캔을 유도했습니다. 이를 과감히 제거하고 메인 절에서 PRD_ID 기준으로 조인하도록 바꿨습니다.
+
+재고(SCRK) 조인 구조 개선 (Outer ➔ Inner)
+
+5 <= SCRK.TMP_PSS_STCK_QTY 조건 때문에 어차피 재고가 없거나 5개 미만인 상품은 다 걸러집니다. 따라서 무의미한 LEFT OUTER JOIN(+)을 INNER JOIN으로 명시하여 오라클 옵티마이저가 더 효율적인 조인 경로(예: Hash Join)를 탈 수 있도록 유도했습니다.
+
+NOT EXISTS 내부 형변환 수정
+
+A.PRD_ID = TO_NUMBER(C.CD_VAL)는 C.CD_VAL 데이터 중에 숫자가 아닌 문자가 섞여 있으면 쿼리가 뻗거나 인덱스를 못 탑니다. 안전하게 컬럼 타입에 맞춰 C.CD_VAL = TO_CHAR(A.PRD_ID) 형태로 가공하는 것을 권장합니다. (만약 CD_VAL이 무조건 숫자라면 그대로 두셔도 무방하지만 가급적 컬럼 가공은 피하는 게 좋습니다.)
+
+4. 추가로 검토할 인덱스(INDEX) 제안
+만약 위와 같이 쿼리를 고쳤는데도 느리다면 아래 인덱스들이 생성되어 있는지 확인이 필요합니다.
+
+TF_GOODS_ASSMT: [MOD_DTIME + GOODS_NO] -> 800일 치 스캔 범위를 줄이기 위함
+
+TB_OD_ORD: [INST_DTM + ORD_ID] -> 최근 30일 데이터만 빠르게 접근하기 위함
+
+TB_OD_ORD_PRD: [ORD_ID + PRD_ID] 또는 [PRD_ID + ORD_ID]
