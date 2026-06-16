@@ -1,1 +1,295 @@
-222 +2 = 224
+@Override
+	public Map<String,Object> getGoodsDetail(ViewCommon viewCommon, long prdId, long scheduleId, long pgmSchdgId, boolean isGpTgtDetail) throws Exception {
+		
+		if(log.isDebugEnabled()) {
+			log.debug("prdId : " + prdId);
+			log.debug("scheduleId : " + scheduleId);
+			log.debug("pgmSchdgId : " + pgmSchdgId);
+			log.debug("viewCommon : " + viewCommon);
+			log.debug("isGpTgtDetail : " + isGpTgtDetail);
+		}
+
+		//상품정보
+        goodsDetailVO.setChnId(chlId);
+        goodsInfo = goodsItemService.selectGoodsDetail(goodsDetailVO);
+
+        //함계 방송하는 상품리스트 조회
+        // jmh isGpTgtDetail isGpTgtDetail 그룹상품은 제외
+        if( isGpTgtDetail == false ) {
+            boolean isHasPgmSchdgId = pgmSchdgId > 0;
+
+            TvShopVO brdCstPgmInfo = new TvShopVO();
+            brdCstPgmInfo.setPrdId(detailPrdId);
+            // 일반상품 false / 11322293 / 0 / 0
+            //System.out.println( "test1: "+isHasPgmSchdgId +" / "+detailPrdId+" / "+goodsInfo.getTvPrdYn()+" // "+String.valueOf(pgmSchdgId) +" / "+String.valueOf(scheduleId));
+            if(isHasPgmSchdgId) {
+                brdCstPgmInfo.setBrcPgmSchdgId(String.valueOf(pgmSchdgId));
+            }else if(scheduleId > 0 ){
+                brdCstPgmInfo.setBrcPgmSchdgId(String.valueOf(scheduleId));
+            }else if("Y".equals(goodsInfo.getTvPrdYn()) ) {
+                System.out.println(" 방송:"+goodsInfo.getTvPrdYn());
+
+
+
+
+
+                brdCstPgmInfo.setDlvExpctDateYn("Y");
+                brdCstPgmInfo = tvShopService.selectScheduleIdByPrdId(brdCstPgmInfo);// 여기
+            }
+            System.out.println(" jmh 부피성, 영업일 조회1: "+goodsInfo.getPrdId() );
+            GoodsItemVO goodsDlvItemVO = goodsItemBODAO.selectGoodsDlvExpctDate(goodsInfo);
+            System.out.println(" jmh 부피성, 영업일 조회2: "+goodsDlvItemVO );
+
+            //dlvExpctDateYn
+            if(brdCstPgmInfo !=null && brdCstPgmInfo.getBrcPgmSchdgId() !=null){
+                //방송중 상품 배송 예정일 조회
+                TvShopVO prdDeliveryDueDateInfo = tvShopDAO.selectPrdDeliveryDueDate(goodsInfo);
+                if(prdDeliveryDueDateInfo != null) {
+                    String dlvExpctDate = prdDeliveryDueDateInfo.getDlvExpctDate();
+                    try{
+                        if (StringUtils.isNotEmpty(dlvExpctDate)) {
+                            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+                            dateFormat.setLenient(false);
+                            Date date = dateFormat.parse(dlvExpctDate);
+
+                            SimpleDateFormat dateFormat1 = new SimpleDateFormat("MM/dd");
+                            String weekDay = dateFormat.getCalendar().getDisplayName(Calendar.DAY_OF_WEEK, Calendar.LONG, Locale.KOREA);
+
+                            //dlvExpctDate = "#dayOfMonth(#dayOfWeek)까지 배송예정"; // 08/28(화)까지 배송예정
+                            dlvExpctDate = "#dayOfMonth(#dayOfWeek)까지 배송예정"; // 08/28(화)까지 배송예정
+                            dlvExpctDate = dlvExpctDate.replaceFirst("#dayOfMonth", dateFormat1.format(date));
+                            dlvExpctDate = dlvExpctDate.replaceFirst("#dayOfWeek", weekDay.length() > 0 ? weekDay.substring(0,1) : "");
+                        }
+                    } catch (ParseException ex) {
+                        if(log.isErrorEnabled()) {
+                        //	log.error(ex);
+                        }
+                    }
+                    result.put("dlvExpctDate", dlvExpctDate);
+                }
+            }
+            result.put("dlvExpctDate", "0616테스트날짜");
+        }
+    }
+
+    // 그룹 1: 여행/렌탈/보험/상조/예약판매
+    private static final List<String> GROUP_HAPPY_CALL = Arrays.asList("230", "240", "250", "260", "300");
+    // 그룹 2: 주문제작/설치/e쿠폰교환권/e쿠폰금액권
+    private static final List<String> GROUP_FAST_DELIVERY = Arrays.asList("210", "220", "270", "280");
+
+    // 실제 DB 카테고리 ID 매핑
+    private static final String LCLS_ID_JEWELRY = "13747";       // 보석 대분류 ID
+    private static final String LCLS_ID_CULTURE = "10008";       // 문화/서비스 대분류 ID
+    private static final String MCLS_ID_TRAVEL = "10049";        // 여행/예약서비스 중분류 ID
+    private static final String SCLS_ID_TRAVEL = "10245";        // 여행 소분류 ID
+    private static final String MCLS_ID_INTANGIBLE = "10050";    // 무형상품 중분류 ID
+    private static final String SCLS_ID_RENTAL = "10248";        // 렌탈서비스 소분류 ID
+
+    /**
+     * 배송 노출 문구 계산 로직 (아이콘 노출 여부 제거, 단순 문구만 반환)
+     * @param goodsInfo        기존 상품 정보 객체
+     * @param isBupi          부피성 상품 여부
+     * @param expectedDdayText 예상 D-DAY 텍스트 (예: "00/00(월)")
+     * @return 노출할 배송 문구 (예: "해피콜 예정")
+     */
+    private String getDeliveryExposureText(GoodsItemVO goodsInfo, boolean isBupi, String expectedDdayText) {
+
+        boolean isTvProduct = "Y".equals(goodsInfo.getTvPrdYn());
+        String lclsId = goodsInfo.getPrdLclsId();
+        String mclsId = goodsInfo.getPrdMclsId();
+        String sclsId = goodsInfo.getPrdSclsId();
+        String dlvCd = goodsInfo.getDlvChrcCd();
+
+        // ------------------------------------------
+        // [1단계] 온라인 상품 등(비 방송상품) 예외 카테고리 우선 처리
+        // ------------------------------------------
+        if (!isTvProduct) {
+            // 예외 1: '보석' 카테고리는 배송특성과 무관하게 무조건 D-DAY 적용
+            if (LCLS_ID_JEWELRY.equals(lclsId)) {
+                return expectedDdayText + "까지 배송 예정";
+            }
+
+            // 예외 2: '문화/서비스' 하위 여행/렌탈 카테고리는 무조건 해피콜 예정
+            if (LCLS_ID_CULTURE.equals(lclsId)) {
+                boolean isTravel = MCLS_ID_TRAVEL.equals(mclsId) && SCLS_ID_TRAVEL.equals(sclsId);
+                boolean isRental = MCLS_ID_INTANGIBLE.equals(mclsId) && SCLS_ID_RENTAL.equals(sclsId);
+
+                if (isTravel || isRental) {
+                    return "해피콜 예정";
+                }
+            }
+        }
+
+        // ------------------------------------------
+        // [2단계] 공통 배송특성 처리 (방송상품 전체 + 예외가 아닌 온라인 상품)
+        // ------------------------------------------
+
+        // 공통 1: 해피콜 대상 배송특성
+        if (dlvCd != null && GROUP_HAPPY_CALL.contains(dlvCd)) {
+            return "해피콜 예정";
+        }
+
+        // 공통 2: 빠른시일내 대상 배송특성 혹은 부피성 상품
+        if ((dlvCd != null && GROUP_FAST_DELIVERY.contains(dlvCd)) || isBupi) {
+            return "빠른시일내 배송 예정";
+        }
+
+        // 방송상품
+        if( isTvProduct ) {
+
+        }else{
+
+
+        }
+
+        // ------------------------------------------
+        // [3단계] 그 외 모든 일반 상품
+        // ------------------------------------------
+        return expectedDdayText + "까지 배송 예정";
+    }
+
+
+
+
+======================================================================
+private String getDeliveryExposureText(GoodsItemVO goodsInfo, boolean isBupi, String expectedDdayText) {
+
+		boolean isTvProduct = "Y".equals(goodsInfo.getTvPrdYn());
+		String lclsId = goodsInfo.getPrdLclsId();
+		String mclsId = goodsInfo.getPrdMclsId();
+		String sclsId = goodsInfo.getPrdSclsId();
+		String dlvCd = goodsInfo.getDlvChrcCd();
+
+		// ------------------------------------------
+		// [1단계] 온라인 상품 등(비 방송상품) 예외 카테고리 우선 처리
+		// ------------------------------------------
+		if (!isTvProduct) {
+			// 예외 1: '보석' 카테고리는 배송특성과 무관하게 무조건 D-DAY 적용
+			if (LCLS_ID_JEWELRY.equals(lclsId)) {
+				return expectedDdayText + "까지 배송 예정";
+			}
+
+			// 예외 2: '문화/서비스' 하위 여행/렌탈 카테고리는 무조건 해피콜 예정
+			if (LCLS_ID_CULTURE.equals(lclsId)) {
+				boolean isTravel = MCLS_ID_TRAVEL.equals(mclsId) && SCLS_ID_TRAVEL.equals(sclsId);
+				boolean isRental = MCLS_ID_INTANGIBLE.equals(mclsId) && SCLS_ID_RENTAL.equals(sclsId);
+
+				if (isTravel || isRental) {
+					return "해피콜 예정";
+				}
+			}
+		}
+
+		// ------------------------------------------
+		// [2단계] 공통 배송특성 처리 (방송상품 전체 + 예외가 아닌 온라인 상품)
+		// ------------------------------------------
+
+		// 공통 1: 해피콜 대상 배송특성
+		if (dlvCd != null && GROUP_HAPPY_CALL.contains(dlvCd)) {
+			return "해피콜 예정";
+		}
+
+		// 공통 2: 빠른시일내 대상 배송특성 혹은 부피성 상품
+		if ((dlvCd != null && GROUP_FAST_DELIVERY.contains(dlvCd)) || isBupi) {
+			return "빠른시일내 배송 예정";
+		}
+
+		// ------------------------------------------
+		// [3단계] 그 외 모든 일반 상품
+		// ------------------------------------------
+		return expectedDdayText + "까지 배송 예정";
+	}
+
+
+
+	//함계 방송하는 상품리스트 조회
+    // jmh isGpTgtDetail isGpTgtDetail 그룹상품 대상상품상세 여부
+    if( isGpTgtDetail == false ) {
+        boolean isHasPgmSchdgId = pgmSchdgId > 0;
+
+        TvShopVO brdCstPgmInfo = new TvShopVO();
+        brdCstPgmInfo.setPrdId(detailPrdId);
+        // 일반상품 false / 11322293 / 0 / 0
+        System.out.println( "test1: "+isHasPgmSchdgId +" / "+detailPrdId+" / "+goodsInfo.getTvPrdYn()+" // "+String.valueOf(pgmSchdgId) +" / "+String.valueOf(scheduleId));
+        if(isHasPgmSchdgId) {
+            brdCstPgmInfo.setBrcPgmSchdgId(String.valueOf(pgmSchdgId));
+        }else if(scheduleId > 0 ){
+            brdCstPgmInfo.setBrcPgmSchdgId(String.valueOf(scheduleId));
+        }else if("Y".equals(goodsInfo.getTvPrdYn()) ) {
+            brdCstPgmInfo = tvShopService.selectScheduleIdByPrdId(brdCstPgmInfo);// 여기
+        }
+        //dlvExpctDateYn
+        System.out.println(" 테스트j1 : "+brdCstPgmInfo);
+        if(brdCstPgmInfo !=null && brdCstPgmInfo.getBrcPgmSchdgId() !=null){
+            System.out.println(" 테스트j2 : "+brdCstPgmInfo.getBrcPgmSchdgId());
+            //방송중 상품 배송 예정일 조회
+            TvShopVO prdDeliveryDueDateInfo = tvShopDAO.selectPrdDeliveryDueDate(goodsInfo);
+            if(prdDeliveryDueDateInfo != null) {
+                String dlvExpctDate = prdDeliveryDueDateInfo.getDlvExpctDate();
+                /*try {
+                    if (StringUtils.isNotEmpty(dlvExpctDate)) {
+                        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+                        dateFormat.setLenient(false);
+                        Date date = dateFormat.parse(dlvExpctDate);
+
+                        SimpleDateFormat dateFormat1 = new SimpleDateFormat("MM/dd");
+                        String weekDay = dateFormat.getCalendar().getDisplayName(Calendar.DAY_OF_WEEK, Calendar.LONG, Locale.KOREA);
+
+                        //dlvExpctDate = "#dayOfMonth(#dayOfWeek)까지 배송예정"; // 08/28(화)까지 배송예정
+                        dlvExpctDate = "#dayOfMonth(#dayOfWeek)까지 배송예정"; // 08/28(화)까지 배송예정
+                        dlvExpctDate = dlvExpctDate.replaceFirst("#dayOfMonth", dateFormat1.format(date));
+                        dlvExpctDate = dlvExpctDate.replaceFirst("#dayOfWeek", weekDay.length() > 0 ? weekDay.substring(0,1) : "");
+                    }
+                } catch (ParseException ex) {
+                    if(log.isErrorEnabled()) {
+                    //	log.error(ex);
+                    }
+                }*/
+                result.put("dlvExpctDate", dlvExpctDate);
+            }
+        }
+    }
+
+
+    ============================================
+
+    <select id="selectScheduleIdByPrdId"  parameterType="TvShopVO"  resultType="TvShopVO">
+    		/* [mapper-TvShop.xml][TvShopDAO.selectScheduleIdByPrdId][함계 방송하는 상품 편성표 ID 조회][CHEN] */
+    		SELECT * FROM(
+    			SELECT
+    				   P.BRC_PGM_NM
+    				  ,PPS.PRD_ID
+    				  ,P.BRC_PGM_ID
+    				  ,PPS.BRC_PGM_SCHDG_ID
+    				  ,TO_CHAR(BRC_STD_DATE,'YYYYMMDD')											AS BRC_STD_DATE
+    				  ,ABS(ROUND(SYSDATE - BRC_STD_DATE,0))										AS BRC_STD_DATE_SEQ
+    				  ,(CASE WHEN SYSDATE <![CDATA[ > ]]> BRC_STD_DATE THEN '1' ELSE '0' END)	AS PREV_BROAD_CAST
+    			FROM  TF_GOODS_RETRV GR ,
+    				  TB_BC_BRC_PGM_SCHDG PS ,
+    				  TB_BC_BRC_PGM_PRD_SCHDG PPS ,
+    				  TB_BC_BRC_PGM P
+    			WHERE GR.DEL_YN      = 'N'
+    				AND GR.SALE_STAT_CD IN ('110', '120')
+    				AND SYSDATE BETWEEN GR.SALE_PRC_STRT_DTIME AND GR.SALE_PRC_END_DTIME
+    				AND PPS.PRD_ID     = GR.GOODS_NO
+    				AND P.BRC_PGM_ID   = PS.BRC_PGM_ID
+    			    AND P.USE_YN 	   = 'Y'
+    				AND PS.CNF_YN      = 'Y'
+    				AND PS.USE_YN      = 'Y'
+    				AND PPS.USE_YN     = 'Y'
+    				AND PS.BRC_PGM_SCHDG_ID = PPS.BRC_PGM_SCHDG_ID
+    				AND PS.BRC_STD_DATE BETWEEN TO_DATE(TO_CHAR(SYSDATE,'YYYY-MM-DD'),'YYYY-MM-DD') - 5 AND TO_DATE(TO_CHAR(SYSDATE,'YYYY-MM-DD'),'YYYY-MM-DD') + 11
+    				<if test="brcPgmSchdgId != null and brcPgmSchdgId !=''">
+    					AND PS.BRC_PGM_SCHDG_ID = #{brcPgmSchdgId}
+    				</if>
+                    <if test="dlvExpctDateYn!= null and dlvExpctDateYn!=''">
+                        AND SYSDATE BETWEEN (BRC_BGN_DTM - INTERVAL '3' HOUR)
+                        AND (BRC_END_DTM + INTERVAL '30' MINUTE)
+                    </if>
+    				AND PPS.PRD_ID = #{prdId}
+    				--AND P.BRC_PGM_ID != '10000976'
+    			ORDER BY
+    				PREV_BROAD_CAST ASC,
+    				BRC_STD_DATE_SEQ ASC
+    		) WHERE ROWNUM = 1
+    	</select>
