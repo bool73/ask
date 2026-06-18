@@ -1,0 +1,78 @@
+SELECT
+<trim suffixOverrides=",">
+    -- 빠른 시일내 배송적용상품 여부
+    (SELECT CASE WHEN SUM(SMS_DLV_EXPT_CNT) > 0 THEN 'Y' ELSE 'N' END
+       FROM (
+             SELECT COUNT(1) SMS_DLV_EXPT_CNT
+               FROM TB_CM_CODE_DTL
+              WHERE CD = 'SMS_DLV_GUIDE_CD' AND CD_VAL = 'N'
+             UNION ALL
+             SELECT COUNT(1) SMS_DLV_EXPT_CNT
+               FROM TB_CM_CODE_DTL
+              WHERE CD = 'SMS_DLV_GUIDE_CD' AND CD_VAL = 'Y'
+                AND EXISTS (SELECT 1
+                              FROM TB_PD_PRD ORD_PRD
+                              JOIN TB_OD_SMS_DLV_GUIDE_EXPT SDGE
+                                ON SDGE.USE_YN = 'Y'
+                               AND (
+                                    (ORD_PRD.SUB_SUPP_ID = SDGE.SMS_DLV_GUIDE_EXPT_RLTD_ID AND SDGE.SMS_DLV_GUIDE_EXPT_CD = '100')
+                                    OR
+                                    (ORD_PRD.PRD_ID = SDGE.SMS_DLV_GUIDE_EXPT_RLTD_ID AND SDGE.SMS_DLV_GUIDE_EXPT_CD = '200')
+                                   )
+                             WHERE ORD_PRD.PRD_ID = #{prdId})
+            )
+    ) AS SMS_DLV_EXPT_APPLY_PRD_YN ,   -- 고객_배송지_ID(기본)
+    <if test="cstId != null and cstId != ''">
+        (SELECT CST_DLVADDR_ID
+           FROM TB_CU_CST_DLVADDR
+          WHERE CST_ID = #{cstId}
+            AND USE_YN = 'Y'
+            AND BSC_DLVADDR_YN = 'Y'
+            AND ROWNUM = 1) AS CST_DLVADDR_ID , </if>
+</trim>
+FROM DUAL
+
+
+------------------------------------------------------------
+
+
+
+/* [mapper-Goods.xml][GoodsItemBODAO.selectGoodsDlvExpctDate][부피성여부, 배송예정일 조회] */
+		SELECT
+			(SELECT CASE WHEN SUM(SMS_DLV_EXPT_CNT) > 0
+							 THEN 'Y'
+			             ELSE 'N'
+						END AS SMS_DLV_EXPT_YN
+			 FROM (
+					  SELECT COUNT(1) SMS_DLV_EXPT_CNT
+				      FROM TB_CM_CODE_DTL
+				      WHERE CD = 'SMS_DLV_GUIDE_CD'
+					    AND CD_VAL = 'N'
+				      UNION ALL
+				      SELECT COUNT(1) SMS_DLV_EXPT_CNT
+				      FROM TB_CM_CODE_DTL
+				      WHERE CD = 'SMS_DLV_GUIDE_CD'
+					    AND CD_VAL = 'Y'
+					    AND EXISTS (SELECT SDGE.SMS_DLV_GUIDE_EXPT_RLTD_ID
+					                FROM TB_OD_SMS_DLV_GUIDE_EXPT SDGE
+					                WHERE ORD_PRD.SUB_SUPP_ID = SDGE.SMS_DLV_GUIDE_EXPT_RLTD_ID
+						              AND SMS_DLV_GUIDE_EXPT_CD = '100'
+						              AND USE_YN = 'Y')
+				      UNION ALL
+				      SELECT COUNT(1) SMS_DLV_EXPT_CNT
+				      FROM TB_CM_CODE_DTL
+				      WHERE CD = 'SMS_DLV_GUIDE_CD'
+					    AND CD_VAL = 'Y'
+					    AND EXISTS (SELECT SDGE.SMS_DLV_GUIDE_EXPT_RLTD_ID
+					                FROM TB_OD_SMS_DLV_GUIDE_EXPT SDGE
+					                WHERE ORD_PRD.PRD_ID = SDGE.SMS_DLV_GUIDE_EXPT_RLTD_ID
+						              AND SMS_DLV_GUIDE_EXPT_CD = '200'
+						              AND USE_YN = 'Y')
+				  )
+			)AS SMS_DLV_EXPT_APPLY_PRD_YN
+
+		    , FN_SP_GET_BIZ_ARRN_DTM(sysdate, 1, 'LO') AS DLV_BGN_DTM_FROM /* 배송시작일 + 1(물류휴일제외) */
+			--, FN_SP_GET_BIZ_ARRN_DTM(ORD_PRD.DLV_BGN_DTM, 2, 'LO') AS DLV_BGN_DTM_TO /* 배송시작일 + 2(물류휴일제외) */
+			-- , '26/06/20' as  DLV_BGN_DTM_FROM
+		FROM  TB_PD_PRD ORD_PRD
+		WHERE ORD_PRD.PRD_ID = #{prdId}
