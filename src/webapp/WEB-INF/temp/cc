@@ -1,0 +1,71 @@
+<select id="xxxxselectGoodsDlvLms"  parameterType="GoodsItemVO"  resultType="GoodsItemVO">
+		/* [mapper-Goods.xml][GoodsItemBODAO.selectGoodsDlvLms][LMS배송예정일변경적용] */
+		SELECT
+			(SELECT CASE WHEN SUM(SMS_DLV_EXPT_CNT) > 0
+							 THEN 'Y'
+			             ELSE 'N'
+						END AS SMS_DLV_EXPT_YN
+			 FROM (
+					  SELECT COUNT(1) SMS_DLV_EXPT_CNT
+				      FROM TB_CM_CODE_DTL
+				      WHERE CD = 'SMS_DLV_GUIDE_CD'
+					    AND CD_VAL = 'N'
+				      UNION ALL
+				      SELECT COUNT(1) SMS_DLV_EXPT_CNT
+				      FROM TB_CM_CODE_DTL
+				      WHERE CD = 'SMS_DLV_GUIDE_CD'
+					    AND CD_VAL = 'Y'
+					    AND EXISTS (SELECT SDGE.SMS_DLV_GUIDE_EXPT_RLTD_ID
+					                FROM TB_OD_SMS_DLV_GUIDE_EXPT SDGE
+					                WHERE ORD_PRD.SUB_SUPP_ID = SDGE.SMS_DLV_GUIDE_EXPT_RLTD_ID
+						              AND SMS_DLV_GUIDE_EXPT_CD = '100'
+						              AND USE_YN = 'Y')
+				      UNION ALL
+				      SELECT COUNT(1) SMS_DLV_EXPT_CNT
+				      FROM TB_CM_CODE_DTL
+				      WHERE CD = 'SMS_DLV_GUIDE_CD'
+					    AND CD_VAL = 'Y'
+					    AND EXISTS (SELECT SDGE.SMS_DLV_GUIDE_EXPT_RLTD_ID
+					                FROM TB_OD_SMS_DLV_GUIDE_EXPT SDGE
+					                WHERE ORD_PRD.PRD_ID = SDGE.SMS_DLV_GUIDE_EXPT_RLTD_ID
+						              AND SMS_DLV_GUIDE_EXPT_CD = '200'
+						              AND USE_YN = 'Y')
+				  )
+			)AS SMS_DLV_EXPT_APPLY_PRD_YN1
+			, 'N' AS SMS_DLV_EXPT_APPLY_PRD_YN -- jmh 테스트
+		FROM  TB_PD_PRD ORD_PRD
+		WHERE ORD_PRD.PRD_ID = #{prdId}
+	</select>
+
+
+	<select id="selectGoodsDlvLms"  parameterType="GoodsItemVO"  resultType="GoodsItemVO">
+		/* [mapper-Goods.xml][GoodsItemBODAO.selectGoodsDlvLms][LMS배송예정일변경적용] */
+		SELECT
+			-- 빠른 시일내 배송적용상품 여부
+			(SELECT CASE WHEN SUM(SMS_DLV_EXPT_CNT) > 0 THEN 'Y' ELSE 'N' END
+				FROM (
+					SELECT COUNT(1) SMS_DLV_EXPT_CNT
+						FROM TB_CM_CODE_DTL
+						WHERE CD = 'SMS_DLV_GUIDE_CD' AND CD_VAL = 'N'
+					UNION ALL
+					SELECT COUNT(1) SMS_DLV_EXPT_CNT
+						FROM TB_CM_CODE_DTL
+						WHERE CD = 'SMS_DLV_GUIDE_CD' AND CD_VAL = 'Y'
+						AND EXISTS (SELECT 1
+										FROM TB_PD_PRD ORD_PRD
+										JOIN TB_OD_SMS_DLV_GUIDE_EXPT SDGE
+										  ON SDGE.USE_YN = 'Y'
+										AND (
+											   (ORD_PRD.SUB_SUPP_ID = SDGE.SMS_DLV_GUIDE_EXPT_RLTD_ID AND SDGE.SMS_DLV_GUIDE_EXPT_CD = '100')
+												OR
+												(ORD_PRD.PRD_ID = SDGE.SMS_DLV_GUIDE_EXPT_RLTD_ID AND SDGE.SMS_DLV_GUIDE_EXPT_CD = '200')
+											)
+										WHERE ORD_PRD.PRD_ID = #{prdId})
+					)
+			) AS SMS_DLV_EXPT_APPLY_PRD_YN    -- 고객_배송지_ID(기본)
+			<if test="mbrNo != null and mbrNo != ''">
+				,(SELECT CST_DLVADDR_ID FROM TB_CU_CST_DLVADDR WHERE CST_ID = #{mbrNo} AND USE_YN = 'Y' AND BSC_DLVADDR_YN = 'Y' AND ROWNUM = 1) AS CST_DLVADDR_ID
+				,(SELECT ZIP_NO FROM TB_CU_CST_DLVADDR WHERE CST_ID = #{mbrNo} AND USE_YN = 'Y' AND BSC_DLVADDR_YN = 'Y' AND ROWNUM = 1) AS CST_ZIP_NO
+			</if>
+		FROM DUAL
+	</select>
