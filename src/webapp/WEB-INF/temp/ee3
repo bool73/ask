@@ -1,0 +1,22 @@
+select
+    prd_id
+    ,prd_nm
+
+    /*100	방송상품 | 200 온라인상품 | 300 모바일라이브전용상품 | 400 eTV전용상품 | 500 티커머스*/
+    ,PRD_TYP_CD || '| ' || (SELECT CD_VAL_NM FROM TB_CM_CODE_DTL WHERE CD ='PRD_TYP_CD' AND CD_VAL = PRD_TYP_CD) as PRD_TYP_CD -- 상품구분
+
+    /*200	일반, 210	주문제작, 220	설치, 230	여행, 240	렌탈, 250	보험, 260	상조, 270	e쿠폰교환권, 280	e쿠폰금액권, 300	예약판매 */
+    ,DLV_CHRC_CD || '| ' || (SELECT CD_VAL_NM FROM TB_CM_CODE_DTL WHERE CD ='DLV_CHRC_CD' AND CD_VAL = DLV_CHRC_CD) as DLV_CHRC_CD -- 배송특성
+
+    /*100 일반 | 300 상담상품 | 400 수수료상품*/
+    ,PRD_SP_CD || '| ' || (SELECT CD_VAL_NM FROM TB_CM_CODE_DTL WHERE CD ='PRD_SP_CD' AND CD_VAL = PRD_SP_CD) as PRD_SP_CD -- 상품_형태_코드
+
+    ,PRD_LCLS_ID	--상품_대분류_ID
+    ,PRD_MCLS_ID	--상품_중분류_ID
+    ,PRD_SCLS_ID	--상품_소분류_ID
+ -- , PRD_SL_STS_CD
+ -- ,PRD_CHRC_CD	--상품_특성_코드
+from tb_pd_prd
+where 1=1
+and use_yn= 'Y'
+and prd_id = '11167778'
