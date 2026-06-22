@@ -72,8 +72,8 @@
 						AND TRUNC(SP.STKO_EXPCT_DATE) > TRUNC(SYSDATE)
 						AND TRUNC(SP.BRC_STD_DATE) = TRUNC(SYSDATE)
 						AND SP.SPC_DUR_APPLY_YN = 'Y'
- 						THEN (CASE WHEN #{cstDlvaddrId} IS NOT NULL AND #{cstDlvaddrId} > 0 THEN FN_SP_GET_DLV_DQTY(#{cstDlvaddrId}, #{cstZipNo}) ELSE 1 END) + SP.SPC_DUR_ADD_DLV_DDCNT
-					ELSE (CASE WHEN #{cstDlvaddrId} IS NOT NULL AND #{cstDlvaddrId} > 0 THEN FN_SP_GET_DLV_DQTY(#{cstDlvaddrId}, #{cstZipNo}) ELSE 1 END)
+ 						THEN FN_SP_GET_BIZ_ARRN_DTM(PG_LO_CM_UTIL.FN_LO_SS_GET_STD_STKO_DTM(A.PRD_ID, '1300', TRUNC(STKO_EXPCT_DATE) , FN_SP_GET_DLV_DQTY(#{cstDlvaddrId}, #{cstZipNo}), 'LO')  --공급계획 마지막 출고허용일
+					ELSE FN_SP_GET_BIZ_ARRN_DTM(PG_LO_CM_UTIL.FN_LO_SS_GET_STD_STKO_DTM(A.PRD_ID, '1300', TRUNC(SYSDATE)  		, FN_SP_GET_DLV_DQTY(#{cstDlvaddrId}, #{cstZipNo}), 'LO')  -- 표준출고에 현재 시점 기준
 					END,
 				'LO'
 			   )  AS DLV_EXPCT_DATE
@@ -92,3 +92,13 @@
 
 
 	----------------------------------------------------------------------------------------------------------------------------
+
+	* 추가 문의사항
+	1. 온라인출고일 다시확인
+	2. 기존 엑셀 해당 로직에서 이미지처럼 변경된 로직 맞는지 확인
+	   2-1) 2)의 조건에 맞을 경우 체크해서 아래 3번 쿼리에 고객리드타임으로 대체하여 계산한다
+               IF lv_spc_dur_apply_yn = 'Y' THEN 일경우 고객리드타임 + ln_spc_dur_add_dlv_ddcnt 를 추가
+               ELSE 고객리드타임
+               END
+    3. NULL 값을 넣어줘도 리드타임1이 나오는데, 둘 다 NULL 넣어줘도 되는지
+       FN_SP_GET_DLV_DQTY(#{cstDlvaddrId}, #{cstZipNo}), 'LO')
