@@ -1,22 +1,93 @@
 select
+     CASE
+           WHEN PRD_SP_CD = '300' THEN '상담상품으로 변경없음(배송영역 안나옴)'
+           WHEN DLV_CHRC_CD = '210' || DLV_CHRC_CD = '220' || DLV_CHRC_CD = '270' || DLV_CHRC_CD = '280'  THEN '빠른배송예정'
+           WHEN DLV_CHRC_CD = '230' || DLV_CHRC_CD = '270' || DLV_CHRC_CD = '280'  THEN '빠른배송예정'
+           WHEN PRD_LCLS_ID = '' AND PRD_MCLS_ID = '' AND PRD_SCLS_ID = '' THEN '해핀가_카테고리_여행'
+            WHEN PRD_LCLS_ID = '' AND PRD_MCLS_ID = '' AND PRD_SCLS_ID = '' THEN '해핀가_카테고리_렌탈'
+
+           WHEN SMS_DLV_EXPT_APPLY_PRD_YN = 'Y' THEN '빠른배송예정(LMS)'
+           WHEN DLV_CHRC_CD = '200'  THEN '일반-배송예정일'
+           ELSE '모름. 재확인필요'
+       END AS RESULT_MSG
+    , t.*
+from
+(
+select
     prd_id
     ,prd_nm
 
     /*100	방송상품 | 200 온라인상품 | 300 모바일라이브전용상품 | 400 eTV전용상품 | 500 티커머스*/
-    ,PRD_TYP_CD || '| ' || (SELECT CD_VAL_NM FROM TB_CM_CODE_DTL WHERE CD ='PRD_TYP_CD' AND CD_VAL = PRD_TYP_CD) as PRD_TYP_CD -- 상품구분
+    ,PRD_TYP_CD
+    ,PRD_TYP_CD || '| ' || (SELECT CD_VAL_NM FROM TB_CM_CODE_DTL WHERE CD ='PRD_TYP_CD' AND CD_VAL = PRD_TYP_CD) as PRD_TYP_CDNM -- 상품구분
 
-    /*200	일반, 210	주문제작, 220	설치, 230	여행, 240	렌탈, 250	보험, 260	상조, 270	e쿠폰교환권, 280	e쿠폰금액권, 300	예약판매 */
-    ,DLV_CHRC_CD || '| ' || (SELECT CD_VAL_NM FROM TB_CM_CODE_DTL WHERE CD ='DLV_CHRC_CD' AND CD_VAL = DLV_CHRC_CD) as DLV_CHRC_CD -- 배송특성
+    /*200	일반, 210 주문제작, 220 설치, 230 여행, 240 렌탈, 250 보험, 260 상조, 270	e쿠폰교환권, 280	e쿠폰금액권, 300	예약판매 */
+    ,DLV_CHRC_CD
+    ,DLV_CHRC_CD || '| ' || (SELECT CD_VAL_NM FROM TB_CM_CODE_DTL WHERE CD ='DLV_CHRC_CD' AND CD_VAL = DLV_CHRC_CD) as DLV_CHRC_CDNM -- 배송특성
 
     /*100 일반 | 300 상담상품 | 400 수수료상품*/
-    ,PRD_SP_CD || '| ' || (SELECT CD_VAL_NM FROM TB_CM_CODE_DTL WHERE CD ='PRD_SP_CD' AND CD_VAL = PRD_SP_CD) as PRD_SP_CD -- 상품_형태_코드
+    ,PRD_SP_CD
+    ,PRD_SP_CD || '| ' || (SELECT CD_VAL_NM FROM TB_CM_CODE_DTL WHERE CD ='PRD_SP_CD' AND CD_VAL = PRD_SP_CD) as PRD_SP_CDNM -- 상품_형태_코드
 
     ,PRD_LCLS_ID	--상품_대분류_ID
     ,PRD_MCLS_ID	--상품_중분류_ID
     ,PRD_SCLS_ID	--상품_소분류_ID
  -- , PRD_SL_STS_CD
  -- ,PRD_CHRC_CD	--상품_특성_코드
-from tb_pd_prd
+
+   , (SELECT CASE WHEN SUM(SMS_DLV_EXPT_CNT) > 0 THEN 'Y' ELSE 'N' END
+            FROM (
+                SELECT COUNT(1) SMS_DLV_EXPT_CNT
+                    FROM TB_CM_CODE_DTL
+                    WHERE CD = 'SMS_DLV_GUIDE_CD' AND CD_VAL = 'N'
+                UNION ALL
+                SELECT COUNT(1) SMS_DLV_EXPT_CNT
+                    FROM TB_CM_CODE_DTL
+                    WHERE CD = 'SMS_DLV_GUIDE_CD' AND CD_VAL = 'Y'
+                    AND EXISTS (SELECT 1
+                                    FROM TB_PD_PRD ORD_PRD
+                                    JOIN TB_OD_SMS_DLV_GUIDE_EXPT SDGE
+                                      ON SDGE.USE_YN = 'Y'
+                                    AND (
+                                           (ORD_PRD.SUB_SUPP_ID = SDGE.SMS_DLV_GUIDE_EXPT_RLTD_ID AND SDGE.SMS_DLV_GUIDE_EXPT_CD = '100')
+                                            OR
+                                            (ORD_PRD.PRD_ID = SDGE.SMS_DLV_GUIDE_EXPT_RLTD_ID AND SDGE.SMS_DLV_GUIDE_EXPT_CD = '200')
+                                        )
+                                    WHERE ORD_PRD.PRD_ID = pd.prd_id
+                                )
+                )
+        ) AS SMS_DLV_EXPT_APPLY_PRD_YN
+
+from tb_pd_prd pd
 where 1=1
 and use_yn= 'Y'
 and prd_id = '11167778'
+) t
+;
+--------------------------------------------------------
+FN_SP_GET_STKO_PMSN_DATE(TA.BGN_STKO_PMSN_DATE, TA.STKO_PMSN_DDCNT)
+PG_LO_CM_UTIL.FN_LO_SS_GET_END_STKO_PMSN_DATE(TA.BRC_DATE_SS_HDY_YN, TA.PRS_SP_CD, TA.SUPLY_PLN_APPLY_YN_TA, TA.BRC_STD_DATE, TA.STNDRD_STKO_DDCNT, TA.SUPLY_PLN_STKO_PMSN_DDCNT)
+PG_LO_CM_UTIL.FN_LO_SS_GET_STKO_PMSN_DATE(BPS.BRC_STD_DATE, 0)
+PG_LO_CM_UTIL.FN_LO_SS_GET_STD_STKO_DTM(A.PRD_ID, '1300', TO_DATE('20260619', 'YYYYMMDD'))
+FN_SP_GET_DLV_DQTY(#{cstDlvaddrId}, #{cstZipNo})
+FN_SP_GET_DLV_DQTY(#{cstDlvaddrId}, #{cstZipNo}), 'LO')
+FN_SP_GET_BIZ_ARRN_DTM(PG_LO_CM_UTIL.FN_LO_SS_GET_STD_STKO_DTM(A.PRD_ID, '1300', SYSDATE), FN_SP_GET_DLV_DQTY(#{cstDlvaddrId}, #{cstZipNo}), 'LO')
+
+변경
+--SELECT FN_SP_GET_STKO_PMSN_DATE(SYSDATE-1, TA.STKO_PMSN_DDCNT) FROM DUAL;
+PG_LO_CM_UTIL.FN_LO_SS_GET_END_STKO_PMSN_DATE('Y', '100', 'Y', SYSDATE-1, TA.STNDRD_STKO_DDCNT, TA.SUPLY_PLN_STKO_PMSN_DDCNT)
+           1. SELECT STNDRD_STKO_DDCNT FROM TB_PD_PRD_CLS WHERE PRD_CLS_ID = P.PRD_DCLS_ID)
+           2. SELECT SUPLY_PLN_STKO_PMSN_DDCNT FROM TB_PD_PRD_CLS WHERE PRD_CLS_ID = P.PRD_DCLS_ID
+--SELECT PG_LO_CM_UTIL.FN_LO_SS_GET_STKO_PMSN_DATE(SYSDATE, 0) FROM DUAL;
+--SELECT PG_LO_CM_UTIL.FN_LO_SS_GET_STD_STKO_DTM(A.PRD_ID, '1300', SYSDATE) FROM DUAL;
+--SELECT FN_SP_GET_DLV_DQTY(#{cstDlvaddrId}, #{cstZipNo})  FROM DUAL;
+--SELECT FN_SP_GET_DLV_DQTY(#{cstDlvaddrId}, #{cstZipNo}), 'LO')  FROM DUAL;
+--SELECT FN_SP_GET_BIZ_ARRN_DTM(PG_LO_CM_UTIL.FN_LO_SS_GET_STD_STKO_DTM(A.PRD_ID, '1300', SYSDATE), FN_SP_GET_DLV_DQTY(#{cstDlvaddrId}, #{cstZipNo}), 'LO')  FROM DUAL;
+
+
+
+
+
+TB_LO_SUPLY_PLN_DATE_QTY LSPDQ
+TB_LO_SUPLY_PLN
+TB_LO_SUPLY_PLN_DTL
