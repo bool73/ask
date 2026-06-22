@@ -1,0 +1,94 @@
+1번 쿼리에서 조회된 일자가
+
+
+
+<select id="selectGoodsDlvExpctDate"  parameterType="GoodsItemVO"  resultType="GoodsItemVO">
+		/* [mapper-Goods.xml][GoodsItemBODAO.selectGoodsDlvExpctDate][배송예정일 2: 표준출고일 + 고객별 리드타임] */
+		<![CDATA[
+		WITH SUPPLY_PLAN AS (
+			-- 최근 방송 공급 계획 조회 (WITH 절 사용)
+			SELECT
+				M.SUPLY_PLN_ID
+				 , M.SPC_DUR_APPLY_YN
+				 , M.SPC_DUR_ADD_DLV_DDCNT
+				 , (GREATEST((SELECT NVL(MAX(STKO_EXPCT_DATE), TO_DATE('1900-01-01', 'YYYY-MM-DD'))
+				              FROM TB_LO_SUPLY_PLN_DATE_QTY LSPDQ
+				              WHERE LSPDQ.SUPLY_PLN_DTL_ID = M.SUPLY_PLN_DTL_ID
+					            AND LSPDQ.SUPLY_PSS_QTY > 0),
+				             (SELECT NVL(MAX(STKO_EXPCT_DATE), TO_DATE('1900-01-01', 'YYYY-MM-DD'))
+				              FROM TB_LO_SUPLY_PLN_DATE_ADD_QTY LSPDQ
+				              WHERE LSPDQ.SUPLY_PLN_DTL_ID = M.SUPLY_PLN_DTL_ID
+					            AND LSPDQ.SUPLY_PSS_QTY > 0))) AS STKO_EXPCT_DATE /*ldt_stko_expct_date*/
+				 , M.BRC_STD_DATE
+
+			FROM (
+					 SELECT SP.SUPLY_PLN_ID                                    -- 공급_계획_ID
+					      , SP.SPC_DUR_APPLY_YN                                -- 특수_기간_적용_여부
+					      , NVL(SP.SPC_DUR_ADD_DLV_DDCNT, 0) AS SPC_DUR_ADD_DLV_DDCNT -- 특수_기간_추가_배송_일수
+					      , SPD.SUPLY_PLN_DTL_ID                               -- 공급_계획_상세_ID
+					      , BPS.BRC_PGM_SCHDG_ID                               -- 방송_프로그램_편성_ID
+					      , BPS.BRC_STD_DATE                                   -- 방송_기준_일자
+				     FROM TB_LO_SUPLY_PLN SP
+							  JOIN TB_LO_SUPLY_PLN_DTL SPD
+								   ON SP.SUPLY_PLN_ID = SPD.SUPLY_PLN_ID AND SP.PRD_ID = SPD.PRD_ID
+					          JOIN TB_PD_PRD PRD
+								   ON SP.PRD_ID = PRD.PRD_ID
+					          JOIN TB_BC_BRC_PGM_SCHDG BPS
+								   ON SP.BRC_PGM_SCHDG_ID = BPS.BRC_PGM_SCHDG_ID
+					          JOIN TB_BC_BRC_PGM_PRD_SCHDG BPPS
+								   ON SP.BRC_PGM_SCHDG_ID = BPPS.BRC_PGM_SCHDG_ID AND SP.PRD_ID = BPPS.PRD_ID
+				     WHERE SP.SUPLY_PLN_PGS_STS_CD = '400'                    -- 공급_계획_진행_상태_코드
+					   AND SP.USE_YN = 'Y'                                    -- 사용_여부 (공급계획)
+					   AND SP.ORD_PSS_QTY_TRNSFR_YN = 'Y'                     -- 주문_가능_수량_이관_여부
+					   AND PRD.DLV_CHRC_CD = '200'                            -- 배송_특성_코드 (일반)
+					   AND SPD.USE_YN = 'Y'                                   -- 사용_여부 (공급계획상세)
+					   AND BPS.CNF_YN = 'Y'                                   -- 확정_여부 (방송편성)
+					   AND BPS.USE_YN = 'Y'                                   -- 사용_여부 (방송편성)
+					   AND BPS.ONAIR_YN = 'N'                                 -- 생방송_여부
+					   AND ((TRUNC(SYSDATE - 10) <= BPS.BRC_END_DTM) OR (TRUNC(SYSDATE - 10) <= BPS.RL_BRC_END_DTM))
+					   AND BPPS.USE_YN = 'Y'                                  -- 사용_여부 (방송프로그램상품편성)
+					   AND SP.PRD_ID = #{prdId}                               -- 상품_ID 파라미터 적용
+				     ORDER BY BPS.BRC_BGN_DTM DESC
+				 ) M
+			WHERE ROWNUM = 1
+		)
+
+		-- 최종 배송예정일 계산
+		SELECT
+			A.PRD_ID                                                                   AS PRD_ID                -- 상품ID
+			 , A.PRD_NM                                                                   AS PRD_NM                -- 상품명
+			 , A.PRD_DCLS_ID                                                              AS PRD_DCLS_ID           -- 상품세분류
+			 , A.PRD_TYP_CD                                                               AS PRD_TYP_CD            -- 상품구분
+			 , A.DLV_CHRC_CD                                                              AS DLV_CHRC_CD           -- 배송특성
+			 --, NVL(B.STNDRD_STKO_DDCNT, 0) + NVL(C.STNDRD_STKO_DDCNT, 0)                  AS STD_STKO_DDCNT        -- 표준출고일
+
+			 -- 최종 배송 예정일: 동일하게 배송지ID(dlvpId) 기준으로 리드타임 계산
+			 -- jmh TRUNC(SYSDATE)) 여기부분 위에서 분기태워서 STKO_EXPCT_DATE 값 또는 sysdate 값 넣어줘야 할듯.
+			 , FN_SP_GET_BIZ_ARRN_DTM(
+				PG_LO_CM_UTIL.FN_LO_SS_GET_STD_STKO_DTM(A.PRD_ID, '1300', TRUNC(SYSDATE)),
+				CASE
+					WHEN SP.SUPLY_PLN_ID IS NOT NULL
+						AND SP.SUPLY_PLN_ID > 0
+						AND TRUNC(SP.STKO_EXPCT_DATE) > TRUNC(SYSDATE)
+						AND TRUNC(SP.BRC_STD_DATE) = TRUNC(SYSDATE)
+						AND SP.SPC_DUR_APPLY_YN = 'Y'
+ 						THEN (CASE WHEN #{cstDlvaddrId} IS NOT NULL AND #{cstDlvaddrId} > 0 THEN FN_SP_GET_DLV_DQTY(#{cstDlvaddrId}, #{cstZipNo}) ELSE 1 END) + SP.SPC_DUR_ADD_DLV_DDCNT
+					ELSE (CASE WHEN #{cstDlvaddrId} IS NOT NULL AND #{cstDlvaddrId} > 0 THEN FN_SP_GET_DLV_DQTY(#{cstDlvaddrId}, #{cstZipNo}) ELSE 1 END)
+					END,
+				'LO'
+			   )  AS DLV_EXPCT_DATE
+
+		FROM TB_PD_PRD A
+				 JOIN TB_PD_PRD_CLS B
+					  ON A.PRD_DCLS_ID = B.PRD_CLS_ID
+			     LEFT JOIN TB_PD_PRD_CLS_STRG_STKO C
+						   ON A.PRD_DCLS_ID = C.PRD_CLS_ID
+							   AND A.PRD_STRG_PATTN_CD = C.PRD_STRG_PATTN_CD
+			     LEFT JOIN SUPPLY_PLAN SP
+						   ON 1=1  -- SUPPLY_PLAN은 항상 1행 이하이므로 무조건 LEFT JOIN
+		WHERE A.PRD_ID = #{prdId}
+		]]>
+	</select>
+
+
+	----------------------------------------------------------------------------------------------------------------------------

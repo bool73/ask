@@ -1,0 +1,92 @@
+1) 배송예정일 구하기 전 먼저 아래 쿼리 실행
+SELECT M.SUPLY_PLN_ID                                                                          AS SUPLY_PLN_ID
+     , M.SPC_DUR_APPLY_YN                                                                      AS SPC_DUR_APPLY_YN
+     , M.SPC_DUR_ADD_DLV_DDCNT                                                                 AS SPC_DUR_ADD_DLV_DDCNT
+     , (GREATEST((SELECT NVL(MAX(STKO_EXPCT_DATE), TO_DATE('1900-01-01', 'YYYY-MM-DD'))
+                    FROM TB_LO_SUPLY_PLN_DATE_QTY LSPDQ
+                   WHERE LSPDQ.SUPLY_PLN_DTL_ID = M.SUPLY_PLN_DTL_ID
+                     AND LSPDQ.SUPLY_PSS_QTY > 0),
+                 (SELECT NVL(MAX(STKO_EXPCT_DATE), TO_DATE('1900-01-01', 'YYYY-MM-DD'))
+                    FROM TB_LO_SUPLY_PLN_DATE_ADD_QTY LSPDQ
+                   WHERE LSPDQ.SUPLY_PLN_DTL_ID = M.SUPLY_PLN_DTL_ID
+                     AND LSPDQ.SUPLY_PSS_QTY > 0)))                                            AS STKO_EXPCT_DATE
+     , M.BRC_STD_DATE                                                                          AS BRC_STD_DATE
+--  INTO ln_suply_pln_id
+--     , lv_spc_dur_apply_yn
+--     , ln_spc_dur_add_dlv_ddcnt
+--     , ldt_stko_expct_date
+--     , ldt_brc_std_dtm
+  FROM (
+        SELECT SP.SUPLY_PLN_ID                     AS SUPLY_PLN_ID
+             , SP.SPC_DUR_APPLY_YN                 AS SPC_DUR_APPLY_YN
+             , NVL(SP.SPC_DUR_ADD_DLV_DDCNT, 0)    AS SPC_DUR_ADD_DLV_DDCNT
+             , SPD.SUPLY_PLN_DTL_ID                AS SUPLY_PLN_DTL_ID
+             , BPS.BRC_PGM_SCHDG_ID                AS BRC_PGM_SCHDG_ID
+             , BPS.BRC_STD_DATE                    AS BRC_STD_DATE
+          FROM TB_LO_SUPLY_PLN SP
+          JOIN TB_LO_SUPLY_PLN_DTL SPD
+            ON SP.SUPLY_PLN_ID      = SPD.SUPLY_PLN_ID
+           AND SP.PRD_ID            = SPD.PRD_ID
+          JOIN TB_PD_PRD PRD
+            ON SP.PRD_ID            = PRD.PRD_ID
+          JOIN TB_BC_BRC_PGM_SCHDG BPS
+            ON SP.BRC_PGM_SCHDG_ID  = BPS.BRC_PGM_SCHDG_ID
+          JOIN TB_BC_BRC_PGM_PRD_SCHDG BPPS
+            ON SP.BRC_PGM_SCHDG_ID  = BPPS.BRC_PGM_SCHDG_ID
+           AND SP.PRD_ID            = BPPS.PRD_ID
+         WHERE SP.SUPLY_PLN_PGS_STS_CD = '400'
+           AND SP.USE_YN = 'Y'
+           AND SP.ORD_PSS_QTY_TRNSFR_YN = 'Y'
+           AND PRD.DLV_CHRC_CD = '200'
+           AND SPD.USE_YN = 'Y'
+           AND BPS.CNF_YN = 'Y'
+           AND BPS.USE_YN = 'Y'
+           AND BPS.ONAIR_YN = 'N'
+           AND ( (TRUNC(SYSDATE - 10) <= BPS.BRC_END_DTM) OR (TRUNC(SYSDATE - 10) <= BPS.RL_BRC_END_DTM) )  --결제 기준으로 10일 이내 방송
+           AND BPPS.USE_YN = 'Y'
+           AND SP.PRD_ID   = 11945619             --상품ID
+           AND PRD.PRD_ID  = 11945619             --상품ID
+         ORDER BY BPS.BRC_BGN_DTM DESC
+       ) M
+ WHERE ROWNUM = 1
+;
+
+
+------------------------------------------------------
+ln_suply_pln_id		lv_spc_dur_apply_yn		ln_spc_dur_add_dlv_ddcnt			ldt_stko_expct_date		ldt_brc_std_dtm
+------------------------------------------------------
+
+
+
+2) 조회된 결과가 있을 경우 아래 조건을 체크
+    jmh : 여기는 확인하기
+    IF ln_suply_pln_id > 0 AND TRUNC(ldt_stko_expct_date) > TRUNC(SYSDATE) AND TRUNC(ldt_brc_std_dtm) = TRUNC(주문접수일자) THEN
+
+    2-1) 2)의 조건에 맞을 경우 체크해서 아래 3번 쿼리에 고객리드타임으로 대체하여 계산한다
+        IF lv_spc_dur_apply_yn = 'Y' THEN 일경우 고객리드타임 + ln_spc_dur_add_dlv_ddcnt 를 추가
+        ELSE 고객리드타임
+        END
+
+jmh 여기sysdate 분기태워야 할듯.
+3) 배송예정일 조회
+SELECT A.PRD_ID                                                                                                                                        AS 상품ID
+     , A.PRD_NM                                                                                                                                        AS 상품명
+     , A.PRD_DCLS_ID                                                                                                                                   AS 상품세분류
+     , A.PRD_TYP_CD                                                                                                                                    AS 상품구분      --[PRD_TYP_CD: 상품_구분_코드] 100: 방송상품, 200: 온라인상품, 300: 모바일라이브전용상품, 400: eTV전용상품
+     , A.DLV_CHRC_CD                                                                                                                                   AS 배송특성      --[DLV_CHRC_CD: 배송_특성_코드] 200: 일반, 210: 주문제작, 220: 설치, 230: 여행, 240: 렌탈, 250: 보험, 260: 상조, 270: e쿠폰교환권, 280: e쿠폰금액권, 300: 예약판매
+     , NVL(B.STNDRD_STKO_DDCNT, 0) + NVL(C.STNDRD_STKO_DDCNT, 0)                                                                                       AS 표준출고일
+
+     , PG_LO_CM_UTIL.FN_LO_SS_GET_STD_STKO_DTM(A.PRD_ID, '1300', TO_DATE('20260619', 'YYYYMMDD'))                                                      AS 출고예정일자    --입력 날짜에 따라 출고예정일 계산
+     , FN_SP_GET_DLV_DQTY(22244927, '03927')                                                                                                           AS 고객리드타임    --배송지ID 우선, 배송지ID없을경우 0, 우편번호없을경우 '0', 배송지ID와 우편번호 둘중 하나는 무조건 있어야 함
+--     , FN_SP_GET_DLV_DQTY(22244927, '03927') + 1                                                                                                       AS 고객리드타임    --2)조건에 맞는경우 ln_spc_dur_add_dlv_ddcnt가 추가된 걸로 계산해야 함
+     , FN_SP_GET_BIZ_ARRN_DTM(PG_LO_CM_UTIL.FN_LO_SS_GET_STD_STKO_DTM(A.PRD_ID, '1300', TO_DATE('20260619', 'YYYYMMDD')), FN_SP_GET_DLV_DQTY(22244927, '03927'), 'LO')  AS 배송예정일_최종
+  FROM TB_PD_PRD A
+ INNER
+  JOIN TB_PD_PRD_CLS B
+    ON A.PRD_DCLS_ID = B.PRD_CLS_ID
+  LEFT
+ OUTER
+  JOIN TB_PD_PRD_CLS_STRG_STKO C
+    ON A.PRD_DCLS_ID = C.PRD_CLS_ID
+   AND A.PRD_STRG_PATTN_CD = C.PRD_STRG_PATTN_CD
+ WHERE A.PRD_ID = 11922760             --상품ID
