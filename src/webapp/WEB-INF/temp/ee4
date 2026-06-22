@@ -1,0 +1,209 @@
+<select id="selectGoodsDlvSupplyPlanDate"  parameterType="GoodsItemVO"  resultType="GoodsItemVO">
+		/* [mapper-Goods.xml][GoodsItemBODAO.selectGoodsDlvSupplyPlanDate][배송예정일 1: 공급계획 배송예정일] */
+		SELECT
+			TA.BRC_PGM_SCHDG_ID                            AS BRC_PGM_SCHDG_ID        /* 방송_편성_프로그램_ID */
+			, TA.BRC_BGN_DTM                                 AS BRC_BGN_DTM             /* 방송_시작_일시 */
+			, TA.BRC_END_DTM                                 AS BRC_END_DTM             /* 방송_종료_일시 */
+			, TA.PRD_ID                                      AS PRD_ID                  /* 상품_ID */
+			, TA.PRD_NM                                      AS PRD_NM                  /* 상품_명 */
+			, TA.PREV_BROAD_CAST
+			, TA.BRC_STD_DATE_SEQ
+			, CASE WHEN (TA.SUPLY_PLN_APPLY_YN_TA = 'N' AND TA.DLV_CHRC_CD = '200' AND TA.SUPLY_PLN_PGS_STS_CD != '600') OR (TA.SUPLY_PLN_APPLY_YN_TA = 'Y' AND TA.SUPLY_PLN_PGS_STS_CD IN ('300', '400')) THEN
+				CASE WHEN TA.DLV_MTD_CD = '100' AND TA.PRS_SP_CD = '100' AND (TO_CHAR(TA.BRC_STD_DATE, 'D') = '7' OR <![CDATA[ TA.BRC_END_DTM  <= TRUNC(TA.BRC_END_DTM)+(16/24)+(50/(24*60))) ]]> THEN TO_CHAR(NVL(TA.DLV_EXPCT_DATE_TA, FN_SP_GET_STKO_PMSN_DATE(TA.BGN_STKO_PMSN_DATE, TA.STKO_PMSN_DDCNT)), 'YYYY-MM-DD')
+					ELSE TO_CHAR(NVL(TA.DLV_EXPCT_DATE_TA, FN_SP_GET_STKO_PMSN_DATE(PG_LO_CM_UTIL.FN_LO_SS_GET_END_STKO_PMSN_DATE(TA.BRC_DATE_SS_HDY_YN, TA.PRS_SP_CD, TA.SUPLY_PLN_APPLY_YN_TA, TA.BRC_STD_DATE, TA.STNDRD_STKO_DDCNT, TA.SUPLY_PLN_STKO_PMSN_DDCNT), 1)), 'YYYY-MM-DD')
+				END
+				ELSE TA.DLV_EXPCT_CONT
+			 END  AS DLV_EXPCT_DATE
+		FROM ( SELECT DISTINCT
+					BPS.BRC_PGM_SCHDG_ID
+					, BPS.BRC_BGN_DTM
+					, BPS.BRC_END_DTM
+					, BPPS.PRD_ID
+					, P.PRD_NM
+					, NVL(SP.SUPLY_PLN_APPLY_YN, CASE WHEN P.DLV_CHRC_CD = '200'
+														AND P.PRS_SP_CD = '200'
+														AND BPS.BRC_TYP_CD != '300'
+														AND BP.BRC_PGM_NM  NOT LIKE '%게릴라%' THEN 'Y'
+													ELSE 'N' END) AS SUPLY_PLN_APPLY_YN_TA
+					, NVL(SP.SUPLY_PLN_PGS_STS_CD, '100') AS SUPLY_PLN_PGS_STS_CD
+					, BP.SUPLY_PLN_APPLY_YN
+					, P.PRS_SP_CD
+					, SP.DLV_EXPCT_CONT
+					, P.DLV_CHRC_CD
+					, BPS.BRC_STD_DATE
+					, SP.DLV_EXPCT_DATE AS DLV_EXPCT_DATE_TA
+					, HD.BRC_STD_DATE_HDY_CNT AS BRC_STD_DATE_HDY_CNT
+					, P.DLV_MTD_CD
+					, P.PRD_TYP_CD
+					, (SELECT SUPLY_PLN_STKO_PMSN_DDCNT
+						FROM TB_PD_PRD_CLS
+						WHERE PRD_CLS_ID = P.PRD_DCLS_ID) + NVL((SELECT SUPLY_PLN_STKO_PMSN_DDCNT
+																FROM TB_PD_PRD_CLS_STRG_STKO
+																WHERE PRD_CLS_ID = P.PRD_DCLS_ID
+																AND PRD_STRG_PATTN_CD = P.PRD_STRG_PATTN_CD
+																AND USE_YN = 'Y'), 0)    AS SUPLY_PLN_STKO_PMSN_DDCNT
+					, CASE WHEN P.PRD_TYP_CD = '100' THEN (SELECT STNDRD_STKO_DDCNT
+															FROM TB_PD_PRD_CLS
+															WHERE PRD_CLS_ID = P.PRD_DCLS_ID) + NVL((SELECT STNDRD_STKO_DDCNT
+																									FROM TB_PD_PRD_CLS_STRG_STKO
+																									WHERE PRD_CLS_ID = P.PRD_DCLS_ID
+																									AND PRD_STRG_PATTN_CD = P.PRD_STRG_PATTN_CD
+																									AND USE_YN = 'Y'), 0)
+					 ELSE (SELECT ONL_STKO_PMSN_DDCNT
+							FROM TB_PD_PRD_CLS
+							WHERE PRD_CLS_ID = P.PRD_DCLS_ID)
+					END AS STNDRD_STKO_DDCNT
+
+					, CASE WHEN (SELECT HDY_ID FROM TB_CM_HDY WHERE TRUNC(HDY_DATE) = BPS.BRC_STD_DATE AND USE_YN = 'Y' AND SYS_CD = 'LO') IS NULL THEN 'N' ELSE 'Y' END  AS BRC_DATE_LO_HDY_YN
+					, CASE WHEN (SELECT HDY_ID FROM TB_CM_HDY WHERE TRUNC(HDY_DATE) = BPS.BRC_STD_DATE AND USE_YN = 'Y' AND SYS_CD = 'SS') IS NULL THEN 'N' ELSE 'Y' END  AS BRC_DATE_SS_HDY_YN
+
+					, CASE WHEN P.PRS_SP_CD = '100' AND P.DLV_MTD_CD = '100' THEN
+						CASE WHEN TO_CHAR(BPS.BRC_STD_DATE, 'D') = '1' AND TO_CHAR(PG_LO_CM_UTIL.FN_LO_SS_GET_STKO_PMSN_DATE(BPS.BRC_STD_DATE, 0), 'D') = '2' THEN PG_LO_CM_UTIL.FN_LO_SS_GET_STKO_PMSN_DATE(BPS.BRC_STD_DATE, 0) -1
+							WHEN TO_CHAR(BPS.BRC_STD_DATE, 'D') = '7' AND TO_CHAR(PG_LO_CM_UTIL.FN_LO_SS_GET_STKO_PMSN_DATE(BPS.BRC_STD_DATE, 1), 'D') = '2'
+							THEN PG_LO_CM_UTIL.FN_LO_SS_GET_STKO_PMSN_DATE(BPS.BRC_STD_DATE, 0) +1
+							ELSE PG_LO_CM_UTIL.FN_LO_SS_GET_STKO_PMSN_DATE(BPS.BRC_STD_DATE, 0)
+						END
+						ELSE PG_LO_CM_UTIL.FN_LO_SS_GET_STKO_PMSN_DATE(BPS.BRC_STD_DATE, 0)
+					END  AS BGN_STKO_PMSN_DATE
+					, CASE WHEN (TO_CHAR(BPS.BRC_STD_DATE, 'D') = '1' AND TO_CHAR(PG_LO_CM_UTIL.FN_LO_SS_GET_STKO_PMSN_DATE(BPS.BRC_STD_DATE, 0), 'D') = '2') OR
+							(TO_CHAR(BPS.BRC_STD_DATE, 'D') = '7' AND TO_CHAR(PG_LO_CM_UTIL.FN_LO_SS_GET_STKO_PMSN_DATE(BPS.BRC_STD_DATE, 1), 'D') = '2') THEN 0 ELSE 1 END  AS STKO_PMSN_DDCNT
+					, ABS(ROUND(SYSDATE - BPS.BRC_STD_DATE,0))						AS BRC_STD_DATE_SEQ
+					, (CASE WHEN SYSDATE  > BPS.BRC_STD_DATE THEN '1' ELSE '0' END)	AS PREV_BROAD_CAST
+				FROM TB_BC_BRC_PGM_SCHDG     BPS
+					INNER JOIN TB_BC_BRC_PGM           BP
+						ON BPS.BRC_PGM_ID          = BP.BRC_PGM_ID
+					LEFT OUTER JOIN TB_BC_BRC_PGM_PRD_SCHDG BPPS
+						ON BPS.BRC_PGM_SCHDG_ID    = BPPS.BRC_PGM_SCHDG_ID
+						AND BPPS.USE_YN             = 'Y'
+					LEFT OUTER JOIN TB_PD_PRD               P
+						ON BPPS.PRD_ID             = P.PRD_ID
+						AND P.USE_YN                = 'Y'
+					LEFT OUTER JOIN TB_LO_SUPLY_PLN         SP
+						ON BPPS.PRD_ID             = SP.PRD_ID
+						AND BPS.BRC_PGM_SCHDG_ID    = SP.BRC_PGM_SCHDG_ID
+						AND SP.USE_YN               = 'Y'
+					LEFT OUTER JOIN (SELECT COUNT(*) AS BRC_STD_DATE_HDY_CNT
+										, TRUNC(H.HDY_DATE) AS HDY_DATE
+									FROM TB_CM_HDY H
+									WHERE H.USE_YN ='Y'
+									AND H.SYS_CD = 'LO'
+									GROUP BY TRUNC(H.HDY_DATE)) HD
+						ON HD.HDY_DATE             = TRUNC(BPS.BRC_STD_DATE)
+				--  WHERE BPS.BRC_STD_DATE BETWEEN TO_DATE('2026-06-19', 'YYYY-MM-DD') AND TO_DATE('2026-06-19', 'YYYY-MM-DD') + (1-(24/60/60))
+               	WHERE 1=1
+				AND SYSDATE BETWEEN (BPS.BRC_BGN_DTM - INTERVAL '3' HOUR) AND (BPS.BRC_END_DTM + INTERVAL '30' MINUTE)
+				AND BPS.CHNL_ID      = 1011
+				AND BPS.USE_YN       = 'Y'
+				AND P.PRD_TYP_CD     != '400'
+				AND BPPS.PRD_ID      = #{prdId}
+                ORDER BY PREV_BROAD_CAST ASC, BRC_STD_DATE_SEQ ASC
+			) TA
+			WHERE ROWNUM = 1
+	</select>
+
+	<select id="selectGoodsDlvExpctDate"  parameterType="GoodsItemVO"  resultType="GoodsItemVO">
+		/* [mapper-Goods.xml][GoodsItemBODAO.selectGoodsDlvExpctDate][배송예정일 2: 표준출고일 + 고객별 리드타임] */
+		<![CDATA[
+		WITH SUPPLY_PLAN AS (
+			-- 최근 방송 공급 계획 조회 (WITH 절 사용)
+			SELECT
+				M.SUPLY_PLN_ID
+				 , M.SPC_DUR_APPLY_YN
+				 , M.SPC_DUR_ADD_DLV_DDCNT
+				 , (GREATEST((SELECT NVL(MAX(STKO_EXPCT_DATE), TO_DATE('1900-01-01', 'YYYY-MM-DD'))
+				              FROM TB_LO_SUPLY_PLN_DATE_QTY LSPDQ
+				              WHERE LSPDQ.SUPLY_PLN_DTL_ID = M.SUPLY_PLN_DTL_ID
+					            AND LSPDQ.SUPLY_PSS_QTY > 0),
+				             (SELECT NVL(MAX(STKO_EXPCT_DATE), TO_DATE('1900-01-01', 'YYYY-MM-DD'))
+				              FROM TB_LO_SUPLY_PLN_DATE_ADD_QTY LSPDQ
+				              WHERE LSPDQ.SUPLY_PLN_DTL_ID = M.SUPLY_PLN_DTL_ID
+					            AND LSPDQ.SUPLY_PSS_QTY > 0))) AS STKO_EXPCT_DATE /*ldt_stko_expct_date*/
+				 , M.BRC_STD_DATE
+
+			FROM (
+					 SELECT SP.SUPLY_PLN_ID                                    -- 공급_계획_ID
+					      , SP.SPC_DUR_APPLY_YN                                -- 특수_기간_적용_여부
+					      , NVL(SP.SPC_DUR_ADD_DLV_DDCNT, 0) AS SPC_DUR_ADD_DLV_DDCNT -- 특수_기간_추가_배송_일수
+					      , SPD.SUPLY_PLN_DTL_ID                               -- 공급_계획_상세_ID
+					      , BPS.BRC_PGM_SCHDG_ID                               -- 방송_프로그램_편성_ID
+					      , BPS.BRC_STD_DATE                                   -- 방송_기준_일자
+				     FROM TB_LO_SUPLY_PLN SP
+							  JOIN TB_LO_SUPLY_PLN_DTL SPD
+								   ON SP.SUPLY_PLN_ID = SPD.SUPLY_PLN_ID AND SP.PRD_ID = SPD.PRD_ID
+					          JOIN TB_PD_PRD PRD
+								   ON SP.PRD_ID = PRD.PRD_ID
+					          JOIN TB_BC_BRC_PGM_SCHDG BPS
+								   ON SP.BRC_PGM_SCHDG_ID = BPS.BRC_PGM_SCHDG_ID
+					          JOIN TB_BC_BRC_PGM_PRD_SCHDG BPPS
+								   ON SP.BRC_PGM_SCHDG_ID = BPPS.BRC_PGM_SCHDG_ID AND SP.PRD_ID = BPPS.PRD_ID
+				     WHERE SP.SUPLY_PLN_PGS_STS_CD = '400'                    -- 공급_계획_진행_상태_코드
+					   AND SP.USE_YN = 'Y'                                    -- 사용_여부 (공급계획)
+					   AND SP.ORD_PSS_QTY_TRNSFR_YN = 'Y'                     -- 주문_가능_수량_이관_여부
+					   AND PRD.DLV_CHRC_CD = '200'                            -- 배송_특성_코드 (일반)
+					   AND SPD.USE_YN = 'Y'                                   -- 사용_여부 (공급계획상세)
+					   AND BPS.CNF_YN = 'Y'                                   -- 확정_여부 (방송편성)
+					   AND BPS.USE_YN = 'Y'                                   -- 사용_여부 (방송편성)
+					   AND BPS.ONAIR_YN = 'N'                                 -- 생방송_여부
+					   AND ((TRUNC(SYSDATE - 10) <= BPS.BRC_END_DTM) OR (TRUNC(SYSDATE - 10) <= BPS.RL_BRC_END_DTM))
+					   AND BPPS.USE_YN = 'Y'                                  -- 사용_여부 (방송프로그램상품편성)
+					   AND SP.PRD_ID = #{prdId}                               -- 상품_ID 파라미터 적용
+				     ORDER BY BPS.BRC_BGN_DTM DESC
+				 ) M
+			WHERE ROWNUM = 1
+		)
+
+		-- 최종 배송예정일 계산
+		SELECT
+			A.PRD_ID                                                                   AS PRD_ID                -- 상품ID
+			 , A.PRD_NM                                                                   AS PRD_NM                -- 상품명
+			 , A.PRD_DCLS_ID                                                              AS PRD_DCLS_ID           -- 상품세분류
+			 , A.PRD_TYP_CD                                                               AS PRD_TYP_CD            -- 상품구분
+			 , A.DLV_CHRC_CD                                                              AS DLV_CHRC_CD           -- 배송특성
+			 --, NVL(B.STNDRD_STKO_DDCNT, 0) + NVL(C.STNDRD_STKO_DDCNT, 0)                  AS STD_STKO_DDCNT        -- 표준출고일
+
+			 -- 최종 배송 예정일: 동일하게 배송지ID(dlvpId) 기준으로 리드타임 계산
+			 , FN_SP_GET_BIZ_ARRN_DTM(
+				PG_LO_CM_UTIL.FN_LO_SS_GET_STD_STKO_DTM(A.PRD_ID, '1300', TRUNC(SYSDATE)),
+				CASE
+					WHEN SP.SUPLY_PLN_ID IS NOT NULL
+						AND SP.SUPLY_PLN_ID > 0
+						AND TRUNC(SP.STKO_EXPCT_DATE) > TRUNC(SYSDATE)
+						AND TRUNC(SP.BRC_STD_DATE) = TRUNC(SYSDATE)
+						AND SP.SPC_DUR_APPLY_YN = 'Y'
+ 						THEN (CASE WHEN #{cstDlvaddrId} IS NOT NULL AND #{cstDlvaddrId} > 0 THEN FN_SP_GET_DLV_DQTY(#{cstDlvaddrId}, #{cstZipNo}) ELSE 1 END) + SP.SPC_DUR_ADD_DLV_DDCNT
+					ELSE (CASE WHEN #{cstDlvaddrId} IS NOT NULL AND #{cstDlvaddrId} > 0 THEN FN_SP_GET_DLV_DQTY(#{cstDlvaddrId}, #{cstZipNo}) ELSE 1 END)
+					END,
+				'LO'
+			   )  AS DLV_EXPCT_DATE
+
+		FROM TB_PD_PRD A
+				 JOIN TB_PD_PRD_CLS B
+					  ON A.PRD_DCLS_ID = B.PRD_CLS_ID
+			     LEFT JOIN TB_PD_PRD_CLS_STRG_STKO C
+						   ON A.PRD_DCLS_ID = C.PRD_CLS_ID
+							   AND A.PRD_STRG_PATTN_CD = C.PRD_STRG_PATTN_CD
+			     LEFT JOIN SUPPLY_PLAN SP
+						   ON 1=1  -- SUPPLY_PLAN은 항상 1행 이하이므로 무조건 LEFT JOIN
+		WHERE A.PRD_ID = #{prdId}
+		]]>
+	</select>
+
+	<select id="selectGoodsDlvOnlineDate"  parameterType="GoodsItemVO"  resultType="GoodsItemVO">
+		/* [mapper-Goods.xml][GoodsItemBODAO.selectGoodsDlvOnlineDate][배송예정일 3: 온라인표준출고일 + 고객별리드타임] */
+		SELECT
+			A.PRD_ID
+			 , A.PRD_NM
+			 , A.PRD_DCLS_ID AS 상품세분류
+			 , A.PRD_TYP_CD AS 상품구분      --[PRD_TYP_CD: 상품_구분_코드] 100: 방송상품, 200: 온라인상품, 300: 모바일라이브전용상품, 400: eTV전용상품
+			 , A.DLV_CHRC_CD AS 배송특성      --[DLV_CHRC_CD: 배송_특성_코드] 200: 일반, 210: 주문제작, 220: 설치, 230: 여행, 240: 렌탈, 250: 보험, 260: 상조, 270: e쿠폰교환권, 280: e쿠폰금액권, 300: 예약판매
+			 , NVL(B.ONL_STKO_PMSN_DDCNT, 0) AS 온라인출고일
+			 --, PG_LO_CM_UTIL.FN_LO_SS_GET_STD_STKO_DTM(A.PRD_ID, '1300', TO_DATE('20260619', 'YYYYMMDD')) AS 출고예정일자    --입력 날짜에 따라 출고예정일 계산
+			 --, FN_SP_GET_DLV_DQTY(null, null) AS 고객리드타임    --배송지ID 우선, 배송지ID없을경우 0, 우편번호없을경우 '0', 배송지ID와 우편번호 둘중 하나는 무조건 있어야 함
+			 , CASE WHEN A.DLV_CHRC_CD IN ('270', '280') THEN TRUNC(SYSDATE)  --E쿠폰일경우 당일
+			        ELSE FN_SP_GET_BIZ_ARRN_DTM(PG_LO_CM_UTIL.FN_LO_SS_GET_STD_STKO_DTM(A.PRD_ID, '1300', SYSDATE), FN_SP_GET_DLV_DQTY(#{cstDlvaddrId}, #{cstZipNo}), 'LO')
+				END AS DLV_EXPCT_DATE
+		FROM TB_PD_PRD A
+			 INNER JOIN TB_PD_PRD_CLS B
+				ON A.PRD_DCLS_ID = B.PRD_CLS_ID
+		WHERE A.PRD_ID = #{prdId}
+	</select>
