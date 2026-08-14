@@ -1,0 +1,2092 @@
+create or replace PROCEDURE        SP_GOODS_RETRV (
+    in_strd_dtime in varchar2 default null
+)
+/*******************************************************************************
+ Object Name : SP_GOODS_RETRV
+ Writer      : YHSEO
+ Write Date  : 2015/06/24
+ Usage       : 전시상품자료 생성
+ history     : 2015.09.17 EC_GOODS_YN 용도변경=>대표이미지 있는경우만 Y 아닌경우 EC 노출불가
+               2015.09.18 프로모션, 쿠폰 정액 할인금액이 판매가보다 클경우 적용않기
+               2015.10.17 판매매체에 관계없이 상품데이터 생성 후 수정
+               2015.10.29 실행중배치 체크 추가
+               2016.01.25 온라인 상품테이블 분리 작업
+               2016.02.15 제품유형코드 컬럼 추가
+               2016.02.25 웹로그 클릭수 현재기준 -7 일로 전상품 수정
+               2016.03.02 랜탈상품 데이터 추가 및 배송 특성 코드 추가
+               2016.03.24 MD ID 추가
+               2016.04.19 승인상태(PRD_APV_STS_CD) 코드값 310(MD팀장승인) 에서 110(MD등록) 상태로 자유변경이 가능토록 기간계 변경으로 해당 로직 추가
+               2016.05.27 무료배송 기준 오류 수정
+               2016.08.25 아임딜 판매수량 수집기간 14일 => 90일로 변경
+               2016.08.25 쿠폰 집계 조회조건 수정
+               2016.08.26 쿠폰 및 프로모션 상품 분류 발행제한 조건절 오류 수정
+               2016.09.26 온라인 쿠폰 타입 조건 추가 (AND    CPN.CPN_ONL_PATTN_CD = '100')
+               2016.12.21 무료배송비 부과 기준코드 300(무조건 유료배송) 추가
+               2016.12.27 임직원 상품여부 컬럼 추가 및 쿼리 튜닝
+               2017.01.13 프로모션 최대가 제한여부 및 최대할인금액 추가
+               2017.01.13 쿠폰 할인 적용시 프로모션 최대할인금액 로직 추가
+               2017.02.21 엔진페이지 제외 여부 항목 추가
+               2017.03.08 쿠폰 협력사 관련 협력사_구분_코드 컬럼 코드 추가 (AND    CPS.SUPP_TYP_CD = '100')
+               2017.03.09 ARS 할인내역 변경된 데이터가 있을 경우에만 Update 처리
+               2017.03.10 모바일 할인 제외 여부 컬럼 추가
+               2017.03.20 엔진페이지 대상 컬럼변경시 EP_MOD_DTIME 컬럼 Update 처리
+               2017.04.25 전시 재고 0 상품 품절표시를 위한 확장테이블 추가 관련 건 처리
+               2017.05.25 상품형태코드 (PRD_SP_CD) 컬럼 추가
+               2017.07.19 모바일 적립금 제외 여부 (MOBILE_PNM_EXCL_YN) 컬럼 추가
+               2017.08.28 기간계 상품분류(대/중) 컬럼 추가
+               2017.12.08 단품 판매_가 차이 여부 (ITEM_SALE_PRC_GAP_YN) 컬럼 추가
+               2018.01.04 배송비 착불 시 무료배송으로 처리
+               2018.05.11 상품집계 프로시저 중 클릭수 SQL 쿼리 튜닝
+               2018.05.14 2월달 개발 브랜드그룹 로직 원복화
+               2018.05.30 단품 판매_가 차이 여부 중 일부 단품가만 변경시 로직 결함 수정
+               2018.11.20 상품 집계 반영시 판매 채널을 고려하지 않고 변경 사항 업데이트 처리로 로직 변경
+               2018.11.28 브랜드ID => 브랜드그룹 으로 변경
+               2019.05.20 온라인_상품_검색명 6컬럼 추가
+               2020.02.12 #25260 상품수정시 MD등록 상태이며 판매가능(110) 인 경우 조회조건을 마지막으로 이동. 노출제외채널 기준을 2번째로 이동
+               2020.03.18 #25193 프로모션 전시 Data 시작/종료시간 집계 개발(프로시저수정_시작 / 종료일 시간 설정)
+               2020.10.07 #28655  EC/MC 상품리스트 할인율/할인가 표기 개선 요청 (대량주문 프로모션 제외)
+               2020.11.10 온라인리뉴얼 전통시장 상품여부
+               2021.01.10 온라인리뉴얼 상품준비노출일시, 상품동영상등록여부 컬럼 추가
+               2021.01.10 #31013 MLC 상품 여부 집계테이블 반영 요청 건 컬럼 추가.
+               2021.04.12 #32322 상품운영형태 컬럼 추가
+               2022.05.04 #39161 상품집계배치 (SP_GOODS_RETRV) 기능 수정건 (클릭수 초기화 로직 수정)
+               2022.11.18 좋아요 횟수 컬럼 추가
+               2022.12.05 TF_GOODS_RETRV_EXT.GOODS_DCLS_ID 컬럼 추가
+               2023.01.03 그룹상품 추가
+               2023.01.04 프로모션 혜택상품
+               2023.03.16 프로모션 혜택상품 수정일자,엔진수정일자 컬럼 UPDATE, 변경항목 UPDATE 조건 추가
+               2025.03.24 #71463 알뜰/리퍼 상품 기능의 건 (상품특성 코드 추가)
+*******************************************************************************/
+    IS
+    V_BATCH_STRD_DTIME DATE;    --검색시작일시
+    V_SYS_DTIME DATE;           --검색종료일시
+    V_CNT NUMBER := 0;
+    V_I_CNT NUMBER := 0;
+    V_U_CNT NUMBER := 0;
+    V_USERID VARCHAR2(7) := '9999991';--FOBATCH
+    --BATCH 실행결과
+    V_EXE_RSLT_CD TF_BATCH_EXE_HIS.EXE_RSLT_CD%TYPE;
+    V_EXE_RSLT TF_BATCH_EXE_HIS.EXE_RSLT%TYPE;
+    V_GOODS_MNL_CONT    TF_GOODS_RETRV.GOODS_MNL_CONT%TYPE;
+    V_TEMP_SALE_PRC NUMBER := 0;
+    V_GOODS_ORD_DLVF_YN       TB_PD_PRD.ORD_DLVF_YN%TYPE;
+    V_GOODS_ORD_DLVF_CD_VAL NUMBER := 0;
+    V_GOODS_F_DLV_STD_CD      TB_PD_PRD.F_DLV_STD_CD%TYPE;
+    V_GOODS_F_DLV_STD_UNIT    TB_PD_PRD.F_DLV_STD_UNIT%TYPE;
+    V_GOODS_FREE_DLV_YN VARCHAR2(1) := 'N';
+    V_GOODS_DLV_COST NUMBER := 0;
+    V_GOODS_COD_YN VARCHAR2(1) := 'N';
+    V_GOODS_ITEM_SALE_PRC_GAP_YN VARCHAR2(1) := 'N';
+
+    --상품변경정보 조회 커서
+CURSOR C_GOODS_LIST IS
+SELECT
+    PRD.PRD_ID AS GOODS_NO /*상품ID*/
+     , PRDONL.ONL_PRD_NM AS GOODS_NM /*상품명 - 일단 온라인 상품명으로 모두 가져 옴 추후 필요시 PRD_NM 마이그레이션 */
+     , UNT.UNT_ID AS ITEM_NO
+     , PRD.PRD_SL_STS_CD AS SALE_STAT_CD /*상품판매상태코드*/ /*100 판매준비 110 판매가능 120 일시품절 130 판매불가*/
+--             , DECODE(PRD.ORD_DLVF_YN, 'N', 'Y', 'N') AS FREE_DLV_YN /*무료배송여부*/
+     , PRD.ORD_DLVF_YN          /*주문배송비여부 N=무료*/
+     , NVL(TO_NUMBER(CD1.CD_VAL_NM), 0) AS ORD_DLVF_CD_VAL  /*주문배송비코드값-배송비*/
+     , PRD.F_DLV_STD_CD                 /*무료배송기준코드*/
+     , PRD.F_DLV_STD_UNIT               /*무료배송기준단위*/
+     , PRD.DLVF_IMPOSE_STD_CD           /*배송비부과기준코드*/
+     , PRD.DLVF_IMPOSE_STD_UNIT         /*배송비부과기준단위*/
+     , PRD.INTF_INTT_YN /*무이자할부*/
+     , PRD.INTF_INTT_MMS /*무이자할부개월수*/
+     , PRD.DEAL_PRD_YN AS DEAL_GOODS_YN /*딜상품여부*/
+     , DECODE(NVL(PRD.ONL_PRD_YN, 'N'), 'N', 'Y', 'N') AS TV_GOODS_YN
+     , 'Y' AS EC_GOODS_YN
+     , PRD.SUPP_ID /*협력사ID*/
+     , SUPP.SUPP_NM /*협력사명*/
+     , BRND.BRND_GP_ID AS BRND_ID /*브랜드ID*/
+     , BRND.BRND_GP_NM AS BRND_NM /*브랜드명*/
+     , PRD.PRD_LCLS_ID AS GOODS_LCLS_ID  /* 영업시스템 대분류 */
+     , PRD.PRD_MCLS_ID AS GOODS_MCLS_ID  /* 영업시스템 중분류 */
+     , PRD.PRD_SCLS_ID AS GOODS_SCLS_ID  /* 영업시스템 소분류 */
+     , PRD.PRD_DCLS_ID AS GOODS_CLS_ID  /* 영업시스템 세분류 */
+     , PRD.SRCH_WRD AS RETRV_WD /*검색어*/
+     , PRD.INST_DTM AS GOODS_REG_DTIME /*상품등록일자*/
+     , PRD.DLV_MTD_CD /*배송방법코드*/
+     , PRDONL.ONL_PRD_NM AS ONL_GOODS_NM /*온라인 상품명*/
+     , PRDONL.DEAL_APPLY_BGN_DTM AS DEAL_APLY_STRT_DTIME /*딜 적용 시작일시*/
+     , PRDONL.DEAL_APPLY_END_DTM AS DEAL_APLY_END_DTIME /*딜 적용 종료일시*/
+     , PRDONL.MAX_ORD_PSS_QTY AS MAX_ORD_PSB_QTY /*최대_주문_가능_수량*/
+     , PRDONL.INSD_SRCH_EXPT_YN AS INSD_RETRV_EXCL_YN /*내부_검색_제외_여부*/
+     , PRDONL.ONL_PRD_TYP_CD /*온라인상품구분코드*/
+     , PRD.MANPRD_PATTN_CD /*제품유형코드*/
+     , PRD.DLV_CHRC_CD  /* 배송특성코드 */
+     , PRD.MD_ID /* MD코드 */
+     , NVL(PRD.ECVEMP_PRD_YN,'N') AS EMP_GOODS_YN /* 임직원_상품_여부 */
+     , PRD.EP_EXPT_YN AS EP_EXCL_YN /* 엔진페이지 제외 여부 */
+     , PRDONL.MOBILE_DSN_EXPT_YN AS MOBILE_DC_EXCL_YN /* 모바일 할인 제외 여부 */
+     , PRD.PRD_SP_CD AS GOODS_SP_CD  /* 상품_형태_코드 */
+     , PRDONL.MOBILE_PNM_EXPT_YN  AS MOBILE_PNM_EXCL_YN  /* 모바일 적립금 제외 여부  */
+     ,'N' AS COD_YN /* 배송비 착불 시 무료배송으로 처리  */
+     , PRDONL.ONL_PRD_SRCH_1_NM  AS ONL_GOODS_RETRV_WD_1  /* 온라인_상품_검색_1_명  */
+     , PRDONL.ONL_PRD_SRCH_2_NM  AS ONL_GOODS_RETRV_WD_2  /* 온라인_상품_검색_2_명  */
+     , PRDONL.ONL_PRD_SRCH_3_NM  AS ONL_GOODS_RETRV_WD_3  /* 온라인_상품_검색_3_명  */
+     , PRDONL.ONL_PRD_SRCH_4_NM  AS ONL_GOODS_RETRV_WD_4  /* 온라인_상품_검색_4_명  */
+     , PRDONL.ONL_PRD_SRCH_5_NM  AS ONL_GOODS_RETRV_WD_5  /* 온라인_상품_검색_5_명  */
+     , PRDONL.ONL_PRD_SRCH_6_NM  AS ONL_GOODS_RETRV_WD_6  /* 온라인_상품_검색_6_명  */
+     , SUPP.TRAD_MRKT_SUPP_YN  AS TRDIT_MRKT_GOODS_YN     /* 전통시장 상품 여부  */
+     , PRDONL.PRD_PEAR_EXPO_BGN_DTM  AS GOODS_PREP_SHOW_STRT_DTIME  /* 상품준비 노출 시작일시 */
+     , PRDONL.PRD_PEAR_EXPO_END_DTM   AS GOODS_PREP_SHOW_END_DTIME  /* 상품준비 노출 종료일시 */
+     , PRD.PRD_TYP_CD  AS GOODS_SCT_CD  /* 상품 구분 코드 (MLC 상품구분 컬럼) */
+     , PRD.PRD_OPR_SP_CD  AS GOODS_OPER_SP_CD  /* 상품 운영 형태 코드 */
+     , 'N' AS GRP_GOODS_YN  /*그룹상품 여부 */ -- 2023.01.04 박장순 추가
+     , NULL AS THMIMG_EXPO_TP_CD /*썸네일 노출유형 코드 2023.01.04 박장순 추가 */
+     , NULL AS DLG_GOODS_NO /*대표상품 PRD_ID 2023.01.04 박장순 추가 */
+     , PRD.PRD_CHRC_CD AS GOODS_CHRC_CD /*상품 특성 코드 100일반, 200알뜰, 300리퍼*/
+FROM   TB_PD_PRD PRD
+   , TB_PD_UNT UNT
+   , V_PD_BRAND BRND
+   , TB_PD_SUPP SUPP
+   , TB_CM_CODE_DTL CD1
+   , TB_PD_PRD_ONL_DTL PRDONL
+WHERE  PRD.USE_YN = 'Y' /*상품사용여부*/
+  AND    PRD.PRD_APV_STS_CD = '310' /*상품승인상태코드 MD팀장승인*/
+  AND    PRD.PRD_SL_STS_CD > '100' /*상품판매상태코드*/
+  AND    PRD.ADD_COMP_PRD_YN = 'N' /*추가구성상품여부*/
+  AND    PRD.PRD_PATTN_CD IN ('100','300') /*100 일반, 200 사은품, 300 특수상품*/
+  AND    PRD.PRD_ID = UNT.PRD_ID  /*대표단품번호*/
+  AND    UNT.USE_YN = 'Y'
+  AND    UNT.DLG_UNT_YN = 'Y'
+  AND    PRD.PRD_ID = PRDONL.PRD_ID
+  AND    PRD.BRND_ID = BRND.BRND_ID (+)
+  AND    PRD.SUPP_ID = SUPP.SUPP_ID (+)
+  AND    CD1.CD (+)= 'ORD_DLVF_CD'
+  AND    PRD.ORD_DLVF_CD = CD1.CD_VAL (+)
+  --검색조건 (상품에 변경사항(신규등록 또는 수정)이 발생한경우)
+  AND (
+    (    PRD.MDF_DTM >= V_BATCH_STRD_DTIME
+        AND    PRD.MDF_DTM < V_SYS_DTIME
+        )
+        OR
+    (
+        UNT.MDF_DTM >= V_BATCH_STRD_DTIME   --대표단품에 변경사항이 생긴경우
+            AND    UNT.MDF_DTM < V_SYS_DTIME
+        )
+        OR
+    (
+        PRDONL.MDF_DTM >= V_BATCH_STRD_DTIME   --온라인 상품정보에 변경사항이 생긴경우
+            AND    PRDONL.MDF_DTM < V_SYS_DTIME
+        )
+        OR
+    (
+        BRND.MDF_DTM >= V_BATCH_STRD_DTIME   --브랜드 정보(VIEW)에 변경사항이 생긴경우
+            AND    BRND.MDF_DTM < V_SYS_DTIME
+        )
+        OR
+    (
+        SUPP.TRAD_MRKT_MDF_DTM >= V_BATCH_STRD_DTIME   --협력사 정보(VIEW)에 전통시장여부 변경사항이 생긴경우
+            AND    SUPP.TRAD_MRKT_MDF_DTM < V_SYS_DTIME
+        )
+        OR
+    (
+        SUPP.TRAD_MRKT_MDF_DTM >= V_BATCH_STRD_DTIME   --협력사 정보(VIEW)에 전통시장여부 변경사항이 생긴경우
+            AND    SUPP.TRAD_MRKT_MDF_DTM < V_SYS_DTIME
+        )
+    )
+UNION ALL
+/* 그룹상품 가격변동정보 추출 추가 2023.01.04 박장순 추가 */
+SELECT
+    GPD.GP_PRD_ID AS GOODS_NO /*그룹상품ID*/
+     , GPD.ONL_PRD_NM AS GOODS_NM /*상품명 - 일단 온라인 상품명으로 모두 가져 옴 추후 필요시 PRD_NM 마이그레이션 */
+     , NULL AS ITEM_NO
+     , CASE WHEN GPD.USE_YN = 'Y'
+    AND DP_YN = 'Y'
+    AND V_SYS_DTIME BETWEEN GPD.DP_BGN_DTM AND GPD.DP_END_DTM THEN '110'
+            ELSE '130' END AS SALE_STAT_CD  /*그룹상품 판매상코드 추출 2023.01.04 박장순 추가 SL_STS_CD ::  (110)판매가능, (130)판매불가 - 그룹상품: 사용여부 + 전시여부 + 전시일자*/
+--             , DECODE(PRD.ORD_DLVF_YN, 'N', 'Y', 'N') AS FREE_DLV_YN /*무료배송여부*/
+     , PRD.ORD_DLVF_YN          /*주문배송비여부 N=무료*/
+     , NVL(TO_NUMBER(CD1.CD_VAL_NM), 0) AS ORD_DLVF_CD_VAL  /*주문배송비코드값-배송비*/
+     , PRD.F_DLV_STD_CD                 /*무료배송기준코드*/
+     , PRD.F_DLV_STD_UNIT               /*무료배송기준단위*/
+     , PRD.DLVF_IMPOSE_STD_CD           /*배송비부과기준코드*/
+     , PRD.DLVF_IMPOSE_STD_UNIT         /*배송비부과기준단위*/
+     , PRD.INTF_INTT_YN /*무이자할부*/
+     , PRD.INTF_INTT_MMS /*무이자할부개월수*/
+     , PRD.DEAL_PRD_YN AS DEAL_GOODS_YN /*딜상품여부*/
+     , DECODE(NVL(PRD.ONL_PRD_YN, 'N'), 'N', 'Y', 'N') AS TV_GOODS_YN
+     , 'Y' AS EC_GOODS_YN
+     , PRD.SUPP_ID /*협력사ID*/
+     , SUPP.SUPP_NM /*협력사명*/
+     , NULL AS BRND_ID /*브랜드ID*/
+     , NULL AS BRND_NM /*브랜드명*/
+     , GPD.PRD_LCLS_ID AS GOODS_LCLS_ID  /* 영업시스템 대분류 */
+     , GPD.PRD_MCLS_ID AS GOODS_MCLS_ID  /* 영업시스템 중분류 */
+     , GPD.PRD_SCLS_ID AS GOODS_SCLS_ID  /* 영업시스템 소분류 */
+     , GPD.PRD_DCLS_ID AS GOODS_CLS_ID  /* 영업시스템 세분류 */
+     , NULL AS RETRV_WD /*검색어*/
+     , GPD.INST_DTM AS GOODS_REG_DTIME /*상품등록일자*/
+     , PRD.DLV_MTD_CD /*배송방법코드*/
+     , GPD.ONL_PRD_NM AS ONL_GOODS_NM /*온라인 상품명*/
+     , GPD.DEAL_APPLY_BGN_DTM AS DEAL_APLY_STRT_DTIME /*딜 적용 시작일시*/
+     , GPD.DEAL_APPLY_END_DTM AS DEAL_APLY_END_DTIME /*딜 적용 종료일시*/
+     , 0 AS MAX_ORD_PSB_QTY /*최대_주문_가능_수량*/
+     , NULL AS INSD_RETRV_EXCL_YN /*내부_검색_제외_여부*/
+     , '100' AS ONL_PRD_TYP_CD /*온라인상품구분코드*/
+     , '100' AS MANPRD_PATTN_CD /*제품유형코드*/
+     , PRD.DLV_CHRC_CD  /* 배송특성코드 */
+     , PRD.MD_ID /* MD코드 */
+     , NVL(PRD.ECVEMP_PRD_YN,'N') AS EMP_GOODS_YN /* 임직원_상품_여부 */
+     , 'N' AS EP_EXCL_YN /* 엔진페이지 제외 여부 */
+     , 'N' AS MOBILE_DC_EXCL_YN /* 모바일 할인 제외 여부 */
+     , '100' AS GOODS_SP_CD  /* 상품_형태_코드 */
+     , NULL  AS MOBILE_PNM_EXCL_YN  /* 모바일 적립금 제외 여부  */
+     ,'N' AS COD_YN /* 배송비 착불 시 무료배송으로 처리  */
+     , GPD.ONL_PRD_SRCH_1_NM  AS ONL_GOODS_RETRV_WD_1  /* 온라인_상품_검색_1_명  */
+     , GPD.ONL_PRD_SRCH_2_NM  AS ONL_GOODS_RETRV_WD_2  /* 온라인_상품_검색_2_명  */
+     , GPD.ONL_PRD_SRCH_3_NM  AS ONL_GOODS_RETRV_WD_3  /* 온라인_상품_검색_3_명  */
+     , GPD.ONL_PRD_SRCH_4_NM  AS ONL_GOODS_RETRV_WD_4  /* 온라인_상품_검색_4_명  */
+     , GPD.ONL_PRD_SRCH_5_NM  AS ONL_GOODS_RETRV_WD_5  /* 온라인_상품_검색_5_명  */
+     , GPD.ONL_PRD_SRCH_6_NM  AS ONL_GOODS_RETRV_WD_6  /* 온라인_상품_검색_6_명  */
+     , SUPP.TRAD_MRKT_SUPP_YN  AS TRDIT_MRKT_GOODS_YN     /* 전통시장 상품 여부  */
+     , NULL  AS GOODS_PREP_SHOW_STRT_DTIME  /* 상품준비 노출 시작일시 */
+     , NULL   AS GOODS_PREP_SHOW_END_DTIME  /* 상품준비 노출 종료일시 */
+     , PRD.PRD_TYP_CD  AS GOODS_SCT_CD  /* 상품 구분 코드 (MLC 상품구분 컬럼) */
+     , '100'  AS GOODS_OPER_SP_CD  /* 상품 운영 형태 코드 */
+     , 'Y' AS GRP_GOODS_YN  /*그룹상품 여부 */ -- 2023.01.04 박장순 추가
+     , GPD.THMIMG_EXPO_TP_CD AS THMIMG_EXPO_TP_CD /*썸네일 노출유형 코드 2023.01.04 박장순 추가 */
+     , GPM.PRD_ID AS DLG_GOODS_NO /*대표상품 PRD_ID 2023.01.04 박장순 추가 */
+     , PRD.PRD_CHRC_CD AS GOODS_CHRC_CD /*상품 특성 코드 100일반, 200알뜰, 300리퍼*/
+FROM   TB_PD_GP_PRD GPD             /* 그룹상품테이블    2023.01.03 박장순 추가 */
+   , TB_PD_GP_PRD_MAPG GPM        /* 그룹상품매핑      2023.01.03 박장순 추가 */
+   , TB_PD_PRD PRD
+   , TB_PD_UNT UNT
+   , TB_PD_SUPP SUPP
+   , TB_CM_CODE_DTL CD1
+WHERE  GPD.USE_YN = 'Y'         /* 그룹상품사용여부    2023.01.03 박장순 추가 */
+  AND    GPD.GP_PRD_APV_STS_CD = '310' /*그룹상품승인상태코드 MD팀장승인*/
+  AND    GPD.GP_PRD_ID = GPM.GP_PRD_ID     /* 그룹상품,그룹상품매핑 조인 2023.01.03 박장순 추가*/
+  AND    GPM.DLG_YN = 'Y'         /*그룹상품 대표상품여부 2023.01.03 박장순 추가*/
+  AND    GPM.PRD_ID = PRD.PRD_ID  /*그룹상품 대표상품번호 2023.01.3 박장순 추가*/
+  AND    PRD.USE_YN = 'Y' /*상품사용여부*/
+  AND    PRD.PRD_APV_STS_CD = '310' /*상품승인상태코드 MD팀장승인*/
+  AND    PRD.PRD_SL_STS_CD > '100' /*상품판매상태코드*/
+  AND    PRD.ADD_COMP_PRD_YN = 'N' /*추가구성상품여부*/
+  AND    PRD.PRD_PATTN_CD IN ('100','300') /*100 일반, 200 사은품, 300 특수상품*/
+  AND    PRD.PRD_ID = UNT.PRD_ID  /*대표단품번호*/
+  AND    UNT.USE_YN = 'Y'
+  AND    UNT.DLG_UNT_YN = 'Y'
+  AND    PRD.SUPP_ID = SUPP.SUPP_ID (+)
+  AND    CD1.CD (+)= 'ORD_DLVF_CD'
+  AND    PRD.ORD_DLVF_CD = CD1.CD_VAL (+)
+  --검색조건 (상품에 변경사항(신규등록 또는 수정)이 발생한경우)
+  AND (
+    (    GPD.MDF_DTM >= V_BATCH_STRD_DTIME
+        AND    GPD.MDF_DTM < V_SYS_DTIME
+        )
+        OR
+    (    GPM.MDF_DTM >= V_BATCH_STRD_DTIME
+        AND    GPM.MDF_DTM < V_SYS_DTIME
+        )
+        OR
+    (    PRD.MDF_DTM >= V_BATCH_STRD_DTIME
+        AND    PRD.MDF_DTM < V_SYS_DTIME
+        )
+        OR
+    (
+        UNT.MDF_DTM >= V_BATCH_STRD_DTIME   --대표단품에 변경사항이 생긴경우
+            AND    UNT.MDF_DTM < V_SYS_DTIME
+        )
+        OR
+    (
+        SUPP.TRAD_MRKT_MDF_DTM >= V_BATCH_STRD_DTIME   --협력사 정보(VIEW)에 전통시장여부 변경사항이 생긴경우
+            AND    SUPP.TRAD_MRKT_MDF_DTM < V_SYS_DTIME
+        )
+        OR
+    (
+        ( GPD.DP_BGN_DTM >= V_BATCH_STRD_DTIME AND GPD.DP_BGN_DTM < V_SYS_DTIME ) OR
+        ( GPD.DP_END_DTM >= V_BATCH_STRD_DTIME AND GPD.DP_END_DTM < V_SYS_DTIME )
+        )
+    )
+;
+
+R_GOODS TF_GOODS_RETRV%ROWTYPE;
+    R_GOODS_EXT TF_GOODS_RETRV_EXT%ROWTYPE;
+    TYPE TYPE_GOODS_LIST IS TABLE OF C_GOODS_LIST%ROWTYPE INDEX BY BINARY_INTEGER;
+    T_GOODS TYPE_GOODS_LIST;
+    --상품가격변경정보 조회 커서
+CURSOR C_PRICE_LIST IS
+SELECT UPC.PRD_ID AS GOODS_NO /*상품번호*/
+     , UPC.UNT_ID AS ITEM_NO    /*단품번호*/
+     , TRUNC(UPC.UPRC) AS SALE_PRC /*판매가*/
+     , UPC.PRC_BGN_DTM AS SALE_PRC_STRT_DTIME /*가격시작일자*/
+     , UPC.PRC_END_DTM AS SALE_PRC_END_DTIME /*가격종료일자*/
+FROM   TB_PD_UNT_PRC_CHG UPC , TB_PD_UNT UNT
+WHERE  UPC.PRD_ID = UNT.PRD_ID
+  AND    UPC.UNT_ID = UNT.UNT_ID
+  AND    UPC.USE_YN = 'Y'
+  AND    UPC.PRC_APV_STS_CD = '310'
+  --AND    UNT.UNT_SL_STS_CD IN ('110' , '120')
+  AND    UNT.DLG_UNT_YN = 'Y' /*상품별로 가격을 1개만 보여주기 위해*/
+  AND    UNT.USE_YN = 'Y'
+  --검색조건 (가격에 변경사항(신규등록 또는 수정)이 발생한경우)
+  AND    (
+    (UPC.PRC_BGN_DTM >= V_BATCH_STRD_DTIME AND UPC.PRC_BGN_DTM < V_SYS_DTIME)
+        OR
+    (
+        UPC.MDF_DTM >= V_BATCH_STRD_DTIME
+            AND UPC.MDF_DTM < V_SYS_DTIME
+            AND UPC.PRC_END_DTM > V_BATCH_STRD_DTIME
+            AND UPC.PRC_BGN_DTM <= V_BATCH_STRD_DTIME
+        )
+        OR
+    (
+        UNT.MDF_DTM >= V_BATCH_STRD_DTIME
+            AND UNT.MDF_DTM < V_SYS_DTIME
+        )
+    )
+  AND    SYSDATE BETWEEN UPC.PRC_BGN_DTM AND UPC.PRC_END_DTM
+;
+TYPE TYPE_PRICE_LIST IS TABLE OF C_PRICE_LIST%ROWTYPE INDEX BY BINARY_INTEGER;
+    T_PRICE TYPE_PRICE_LIST;
+
+    --상품단품가격수량 조회 커서
+CURSOR C_UNT_PRICE_GAP_CNT_LIST IS
+SELECT UNT.PRD_ID AS GOODS_NO
+FROM   TB_PD_UNT_PRC_CHG UPC , TB_PD_UNT UNT
+WHERE  UPC.PRD_ID = UNT.PRD_ID
+  AND    UPC.UNT_ID = UNT.UNT_ID
+  AND    UPC.USE_YN = 'Y'
+  AND    UPC.PRC_APV_STS_CD = '310'
+  AND    UNT.UNT_SL_STS_CD = '110'
+  AND    UNT.USE_YN = 'Y'
+  AND    SYSDATE BETWEEN UPC.PRC_BGN_DTM AND UPC.PRC_END_DTM
+  --검색조건 (가격에 변경사항(신규등록 또는 수정)이 발생한경우)
+  AND    (
+    (UPC.PRC_BGN_DTM >= V_BATCH_STRD_DTIME AND UPC.PRC_BGN_DTM < V_SYS_DTIME)
+        OR
+    (
+        UPC.MDF_DTM >= V_BATCH_STRD_DTIME
+            AND UPC.MDF_DTM < V_SYS_DTIME
+            AND UPC.PRC_END_DTM > V_BATCH_STRD_DTIME
+            AND UPC.PRC_BGN_DTM <= V_BATCH_STRD_DTIME
+        )
+        OR
+    (
+        UNT.MDF_DTM >= V_BATCH_STRD_DTIME
+            AND UNT.MDF_DTM < V_SYS_DTIME
+        )
+    )
+GROUP BY UNT.PRD_ID
+;
+TYPE TYPE_UNT_PRICE_GAP_CNT_LIST IS TABLE OF C_UNT_PRICE_GAP_CNT_LIST%ROWTYPE INDEX BY BINARY_INTEGER;
+    T_UNT_PRICE_GAP_CNT TYPE_UNT_PRICE_GAP_CNT_LIST;
+
+    /* 프로모션 커서 */
+CURSOR C_PMT_LIST IS
+SELECT PMT.PMT_ID AS PR_ID
+     , PMT.PMT_NM AS PR_NM
+     , TO_DATE(TO_CHAR(PMT.PMT_BGN_DTM,'YYYY/MM/DD') || PMT.APPLY_BGN_HH_MI || '00','YYYY/MM/DD HH24:MI:SS') AS PR_STRT_DTIME
+     , TO_DATE(TO_CHAR(PMT.PMT_END_DTM,'YYYY/MM/DD') || PMT.APPLY_END_HH_MI || '00','YYYY/MM/DD HH24:MI:SS') AS PR_END_DTIME
+     , PMT.PMT_RTAMT_TYP_CD AS PR_RTAMT_TP_CD /*100 정률 200 정액*/
+     , PMT.PMT_SELFCO_BRN_RTAMT + PMT.PMT_SUPP_BRN_RTAMT AS PR_DC_RTAMT
+     , PPRD.PRD_ID AS GOODS_NO
+     , PMT.MAX_AMT_LMT_YN AS PR_MAX_AMT_LMT_YN
+     , PMT.PMT_APPLY_MAX_AMT AS PR_APLY_MAX_AMT
+FROM   TB_PD_PMT PMT, TB_PD_PMT_PRD PPRD, TB_PD_PRD PRD
+WHERE  PMT.USE_YN = 'Y'
+  AND    PMT.PMT_STS_CD = '110' /*진행*/
+  AND    PMT.PMT_APV_STS_CD = '210' /*승인*/
+  AND    PMT.PMT_PATTN_CD = '100' /*가격할인_상품*/
+  AND    PMT.PMT_APPLY_CST_LMT_YN = 'N' /*프로모션_적용_고객_제한_여부*/
+  AND    PMT.PMT_PRTC_TMS_LMT_YN = 'N' /*프로모션_참여_횟수_제한_여부*/
+  AND    PMT.PMT_CST_PRTC_TMS_LMT_YN = 'N' /*프로모션_고객_참여_횟수_제한_여부*/
+  AND    PMT.TRT_AR_LMT_YN = 'N' /*대상_지역_제한_여부*/
+  AND    PMT.TRT_CST_GD_LMT_YN = 'N' /*대상_고객_등급_제한_여부*/
+  AND    PMT.TRT_CST_LMT_YN = 'N' /*대상_고객_제한_여부*/
+  AND    V_SYS_DTIME BETWEEN TO_DATE(TO_CHAR(PMT.PMT_BGN_DTM,'YYYY/MM/DD') || PMT.APPLY_BGN_HH_MI || '00','YYYY/MM/DD HH24:MI:SS') AND TO_DATE(TO_CHAR(PMT.PMT_END_DTM,'YYYY/MM/DD') || PMT.APPLY_END_HH_MI || '00','YYYY/MM/DD HH24:MI:SS') /*프로모션 */
+  AND    PMT.TRT_PRD_LMT_YN = 'Y'  /*대상_상품_제한_여부*/
+  AND    PMT.PMT_ID = PPRD.PMT_ID
+  AND    PMT.PMT_BGN_DTM IS NOT NULL
+  AND    PMT.PMT_END_DTM IS NOT NULL
+  AND    PPRD.USE_YN = 'Y'
+    /* 프로모션상품구분코드 100:전체, 200:온라인, 300:방송 */
+  AND ( NVL(PMT.PMT_PRD_TYP_CD ,'100') = '100'
+    OR( NVL(PMT.PMT_PRD_TYP_CD ,'100') = '200' AND PRD.ONL_PRD_YN='Y')
+    OR( NVL(PMT.PMT_PRD_TYP_CD ,'100') = '300' AND PRD.ONL_PRD_YN='N')
+    )
+  AND    (PMT.TRT_CHNL_LMT_YN = 'N' /*대상_채널_제한_여부*/
+    OR      (PMT.TRT_CHNL_LMT_YN = 'Y'
+        AND NOT EXISTS (SELECT 1
+                        FROM   TB_PD_PMT_IMPSS_CHNL PIC
+                        WHERE  PIC.PMT_ID = PMT.PMT_ID
+                          AND    PIC.MDA_CD  = '110' --인터넷
+                          AND    PIC.USE_YN = 'Y')))
+  AND    (PMT.TRT_SUPP_LMT_YN = 'N' /*대상_협력사_제한_여부*/
+    OR     (PMT.TRT_SUPP_LMT_YN = 'Y'
+        AND    EXISTS ( SELECT 1
+                        FROM   TB_PD_PMT_SUPP SUPP
+                        WHERE  SUPP.USE_YN = 'Y'
+                          AND    SUPP.PMT_ID = PMT.PMT_ID
+                          AND    SUPP.SUPP_ID = PRD.SUPP_ID)))
+  AND    (PMT.TRT_PRD_CLS_LMT_YN = 'N' /*대상_상품_분류_제한_여부*/
+    OR     (PMT.TRT_PRD_CLS_LMT_YN = 'Y'
+        AND    EXISTS ( SELECT 1
+                        FROM   TB_PD_PMT_PRD_CLS PCLS
+                        WHERE  PCLS.USE_YN = 'Y'
+                          AND    PCLS.PMT_ID = PMT.PMT_ID
+                          AND    (
+                            (PCLS.PRD_CLS_LV = 1 AND PCLS.PRD_LCLS_ID = PRD.PRD_LCLS_ID)
+                                OR     (PCLS.PRD_CLS_LV = 2
+                                AND    PCLS.PRD_LCLS_ID = PRD.PRD_LCLS_ID
+                                AND    PCLS.PRD_MCLS_ID = PRD.PRD_MCLS_ID)
+                                OR     (PCLS.PRD_CLS_LV = 3
+                                AND    PCLS.PRD_LCLS_ID = PRD.PRD_LCLS_ID
+                                AND    PCLS.PRD_MCLS_ID = PRD.PRD_MCLS_ID
+                                AND    PCLS.PRD_SCLS_ID = PRD.PRD_SCLS_ID)
+                                OR     (PCLS.PRD_CLS_LV = 4
+                                AND    PCLS.PRD_LCLS_ID = PRD.PRD_LCLS_ID
+                                AND    PCLS.PRD_MCLS_ID = PRD.PRD_MCLS_ID
+                                AND    PCLS.PRD_SCLS_ID = PRD.PRD_SCLS_ID
+                                AND    PCLS.PRD_DCLS_ID = PRD.PRD_DCLS_ID)
+                            )
+        )
+              )
+    )
+  AND    (PMT.TRT_EXPT_PRD_LMT_YN = 'N' /*대상_제외_상품_제한_여부*/
+    OR     (PMT.TRT_EXPT_PRD_LMT_YN = 'Y'
+        AND NOT EXISTS (SELECT 1 /*프로모션_제외_상품*/
+                        FROM   TB_PD_PMT_EXPT_PRD PEP
+                        WHERE  PEP.PRD_ID = PRD.PRD_ID
+                          AND    PEP.PMT_ID = PMT.PMT_ID
+                          AND    PEP.USE_YN = 'Y' )))
+  AND    (PMT.TRT_INFLX_PT_LMT_YN = 'N' /*대상_유입_경로_제한_여부*/
+    OR     (PMT.TRT_INFLX_PT_LMT_YN = 'Y'
+        AND NOT EXISTS (SELECT 1
+                        FROM   TB_PD_PMT_IMPSS_ORD_INFLX_PT PIOIP
+                        WHERE  PIOIP.PMT_ID = PMT.PMT_ID
+                          AND    PIOIP.USE_YN = 'Y'
+                          AND    PIOIP.ORD_INFLX_PT_CD IN ('120' , '130') /*120 인터넷, 130 M-Commerce*/)))
+  AND    PPRD.PRD_ID = PRD.PRD_ID
+  AND    PRD.USE_YN = 'Y'
+  AND    PRD.PRD_APV_STS_CD = '310'
+  AND    PRD.PRD_SL_STS_CD IN ('110' , '120')
+  AND    PRD.PRD_PATTN_CD IN ('100', '300')   /*100 일반, 200 사은품, 300 특수상품*/
+  AND    PRD.ADD_COMP_PRD_YN = 'N' /*추가구성상품여부*/
+  AND    PMT.PRD_MIN_ORD_AMT_LMT_YN !='Y'
+          AND    PMT.PRD_MIN_ORD_QTY_LMT_YN !='Y'
+          AND    NOT EXISTS ( SELECT 1
+                              FROM   TB_PD_PRD_SL_IMPSS_CHNL PSIC
+                              WHERE  PSIC.PRD_ID = PRD.PRD_ID
+                                AND    PSIC.MDA_CD IN ('110') /*110 인터넷*/
+                                AND    PSIC.USE_YN = 'Y'
+            )
+;
+TYPE TYPE_PMT_LIST IS TABLE OF C_PMT_LIST%ROWTYPE INDEX BY BINARY_INTEGER;
+    T_PMT TYPE_PMT_LIST;
+-- /******************* 2023. 3.29 제거    ******************************
+--    /* 프로모션 커서 혜택상품 조회용 컬럼 추가 2023.01.04 박장순 추가*/
+--    CURSOR C_PATTN_LIST IS
+--        SELECT PMT.PMT_ID AS PR_ID
+--             , PMT.PMT_NM AS PR_NM
+--             , PPRD.PRD_ID AS GOODS_NO
+--             , PMT.PMT_PATTN_CD AS PMT_PATTN_CD
+--        FROM   TB_PD_PMT PMT, TB_PD_PMT_PRD PPRD, TB_PD_PRD PRD
+--        WHERE  PMT.USE_YN = 'Y'
+--        AND    PMT.PMT_STS_CD = '110' /*진행*/
+--        AND    PMT.PMT_APV_STS_CD = '210' /*승인*/
+--        AND    PMT.PMT_APPLY_CST_LMT_YN = 'N' /*프로모션_적용_고객_제한_여부*/
+--        AND    PMT.PMT_PRTC_TMS_LMT_YN = 'N' /*프로모션_참여_횟수_제한_여부*/
+--        AND    PMT.PMT_CST_PRTC_TMS_LMT_YN = 'N' /*프로모션_고객_참여_횟수_제한_여부*/
+--        AND    PMT.TRT_AR_LMT_YN = 'N' /*대상_지역_제한_여부*/
+--        AND    PMT.TRT_CST_GD_LMT_YN = 'N' /*대상_고객_등급_제한_여부*/
+--        AND    PMT.TRT_CST_LMT_YN = 'N' /*대상_고객_제한_여부*/
+--        AND    PMT.TRT_PRD_LMT_YN = 'Y'  /*대상_상품_제한_여부*/
+--        AND    PMT.PMT_ID = PPRD.PMT_ID
+--        AND    PPRD.USE_YN = 'Y'
+--        /* 프로모션상품구분코드 100:전체, 200:온라인, 300:방송 */
+--        AND ( NVL(PMT.PMT_PRD_TYP_CD ,'100') = '100'
+--              OR( NVL(PMT.PMT_PRD_TYP_CD ,'100') = '200' AND PRD.ONL_PRD_YN='Y')
+--              OR( NVL(PMT.PMT_PRD_TYP_CD ,'100') = '300' AND PRD.ONL_PRD_YN='N')
+--            )
+--        AND    (PMT.TRT_CHNL_LMT_YN = 'N' /*대상_채널_제한_여부*/
+--                OR      (PMT.TRT_CHNL_LMT_YN = 'Y'
+--                        AND NOT EXISTS (SELECT 1
+--                                        FROM   TB_PD_PMT_IMPSS_CHNL PIC
+--                                        WHERE  PIC.PMT_ID = PMT.PMT_ID
+--                                        AND    PIC.MDA_CD  = '110' --인터넷
+--                                        AND    PIC.USE_YN = 'Y')))
+--        AND    (PMT.TRT_SUPP_LMT_YN = 'N' /*대상_협력사_제한_여부*/
+--                OR     (PMT.TRT_SUPP_LMT_YN = 'Y'
+--                        AND    EXISTS ( SELECT 1
+--                                        FROM   TB_PD_PMT_SUPP SUPP
+--                                        WHERE  SUPP.USE_YN = 'Y'
+--                                        AND    SUPP.PMT_ID = PMT.PMT_ID
+--                                        AND    SUPP.SUPP_ID = PRD.SUPP_ID)))
+--        AND    (PMT.TRT_PRD_CLS_LMT_YN = 'N' /*대상_상품_분류_제한_여부*/
+--                OR     (PMT.TRT_PRD_CLS_LMT_YN = 'Y'
+--                        AND    EXISTS ( SELECT 1
+--                                        FROM   TB_PD_PMT_PRD_CLS PCLS
+--                                        WHERE  PCLS.USE_YN = 'Y'
+--                                        AND    PCLS.PMT_ID = PMT.PMT_ID
+--                                        AND    (
+--                                                (PCLS.PRD_CLS_LV = 1 AND PCLS.PRD_LCLS_ID = PRD.PRD_LCLS_ID)
+--                                                OR     (PCLS.PRD_CLS_LV = 2
+--                                                        AND    PCLS.PRD_LCLS_ID = PRD.PRD_LCLS_ID
+--                                                        AND    PCLS.PRD_MCLS_ID = PRD.PRD_MCLS_ID)
+--                                                OR     (PCLS.PRD_CLS_LV = 3
+--                                                        AND    PCLS.PRD_LCLS_ID = PRD.PRD_LCLS_ID
+--                                                        AND    PCLS.PRD_MCLS_ID = PRD.PRD_MCLS_ID
+--                                                        AND    PCLS.PRD_SCLS_ID = PRD.PRD_SCLS_ID)
+--                                                OR     (PCLS.PRD_CLS_LV = 4
+--                                                        AND    PCLS.PRD_LCLS_ID = PRD.PRD_LCLS_ID
+--                                                        AND    PCLS.PRD_MCLS_ID = PRD.PRD_MCLS_ID
+--                                                        AND    PCLS.PRD_SCLS_ID = PRD.PRD_SCLS_ID
+--                                                        AND    PCLS.PRD_DCLS_ID = PRD.PRD_DCLS_ID)
+--                                               )
+--                                    )
+--                        )
+--                )
+--        AND    (PMT.TRT_EXPT_PRD_LMT_YN = 'N' /*대상_제외_상품_제한_여부*/
+--                OR     (PMT.TRT_EXPT_PRD_LMT_YN = 'Y'
+--                        AND NOT EXISTS (SELECT 1 /*프로모션_제외_상품*/
+--                                        FROM   TB_PD_PMT_EXPT_PRD PEP
+--                                        WHERE  PEP.PRD_ID = PRD.PRD_ID
+--                                        AND    PEP.PMT_ID = PMT.PMT_ID
+--                                        AND    PEP.USE_YN = 'Y' )))
+--        AND    (PMT.TRT_INFLX_PT_LMT_YN = 'N' /*대상_유입_경로_제한_여부*/
+--                OR     (PMT.TRT_INFLX_PT_LMT_YN = 'Y'
+--                        AND NOT EXISTS (SELECT 1
+--                                        FROM   TB_PD_PMT_IMPSS_ORD_INFLX_PT PIOIP
+--                                        WHERE  PIOIP.PMT_ID = PMT.PMT_ID
+--                                        AND    PIOIP.USE_YN = 'Y'
+--                                        AND    PIOIP.ORD_INFLX_PT_CD IN ('120' , '130') /*120 인터넷, 130 M-Commerce*/)))
+--        AND    PPRD.PRD_ID = PRD.PRD_ID
+--        AND    PRD.USE_YN = 'Y'
+--        AND    PRD.PRD_APV_STS_CD = '310'
+--        AND    PRD.PRD_SL_STS_CD IN ('110' , '120')
+--        AND    PRD.PRD_PATTN_CD IN ('100', '300')   /*100 일반, 200 사은품, 300 특수상품*/
+--        AND    PRD.ADD_COMP_PRD_YN = 'N' /*추가구성상품여부*/
+--        AND    PMT.PRD_MIN_ORD_AMT_LMT_YN !='Y'
+--        AND    PMT.PRD_MIN_ORD_QTY_LMT_YN !='Y'
+--        AND    NOT EXISTS ( SELECT 1
+--                            FROM   TB_PD_PRD_SL_IMPSS_CHNL PSIC
+--                            WHERE  PSIC.PRD_ID = PRD.PRD_ID
+--                            AND    PSIC.MDA_CD IN ('110') /*110 인터넷*/
+--                            AND    PSIC.USE_YN = 'Y'
+--                            )
+--        ;
+--
+--    TYPE TYPE_PATTN_LIST IS TABLE OF C_PATTN_LIST%ROWTYPE INDEX BY BINARY_INTEGER;
+--    T_PATTN TYPE_PATTN_LIST;
+
+    /* 쿠폰 커서 */
+CURSOR C_CPN_LIST IS
+SELECT CPN.CPN_ID
+     , CPN.CPN_NM
+     , CPN.CPN_RTAMT_TYP_CD AS CPN_RTAMT_TP_CD
+     , CPN.CPN_SELFCO_BRN_RTAMT + CPN.CPN_SUPP_BRN_RTAMT AS CPN_DC_RTAMT
+     , CPN.PRT_BGN_DTM  AS CPN_STRT_DTIME
+     , CPN.PRT_END_DTM  AS CPN_END_DTIME
+     , CPP.PRD_ID AS GOODS_NO
+FROM   TB_PD_CPN CPN
+   , TB_PD_CPN_PRT_PRD CPP
+   , TB_PD_PRD PRD
+   , TB_PD_PRD_ONL_DTL PRDONL
+WHERE  CPN.USE_YN = 'Y'
+  AND    CPN.CPN_STS_CD = '110' /*진행*/
+  AND    CPN.CPN_APV_STS_CD = '210' /*승인*/
+  AND    CPN.CPN_PATTN_CD = '100' /*가격할인*/
+  AND    CPN.CPN_PRT_PATTN_CD ='110' /*개별발행*/
+  AND    CPN.CPN_PRT_TYP_CD = '110' /*수동발행*/
+  AND    CPN.DNLOAD_CPN_YN = 'Y'   /*다운로드_쿠폰_여부*/
+  AND    SYSDATE BETWEEN CPN.PRT_BGN_DTM AND CPN.PRT_END_DTM /*발행기간*/
+  AND    CPN.TRT_PRD_PRT_LMT_YN = 'Y' /*대상_상품_발행_제한_여부*/
+  AND    CPP.USE_YN = 'Y'
+  AND    CPP.CPN_ID = CPN.CPN_ID
+  AND    CPP.PRD_ID = PRD.PRD_ID
+  AND    PRD.PRD_ID = PRDONL.PRD_ID
+--        AND    CPN.CPN_PRT_ORD_AMT_LMT_YN = 'N' /*쿠폰발행주문금액제한여부*/
+--        AND    CPN.CPN_PRT_ORD_BGN_AMT = 0
+--        AND    CPN.CPN_PRT_ORD_END_AMT = 0
+--        AND    CPN.CPN_PRT_EMP_YN = 'N'       /*사원여부*/
+--        AND    CPN.CPN_PRT_ORD_BGN_DTM IS NULL
+--        AND    CPN.CPN_PRT_ORD_END_DTM IS NULL
+--        AND    CPN.CPN_PRT_JN_BGN_DTM IS NULL
+--        AND    CPN.CPN_PRT_JN_END_DTM IS NULL
+  AND    CPN.CPN_PRT_CST_GD_CD IS NULL    /*쿠폰발행고객등급코드*/
+  AND    CPN.CPN_DUAL_PRT_LMT_YN = 'N'    /*쿠폰_중복_발행_제한_여부*/
+  AND    CPN.PRT_QTY_LMT_YN = 'N'         /*발행_수량_제한_여부*/
+  AND    CPN.CPN_PRT_NEW_CST_YN = 'N'     /*쿠폰발행신규고객여부*/
+  AND    CPN.MIN_ORD_AMT_LMT_YN = 'N'     /*최소주문금액제한여부*/
+  --AND    CPN.MAX_AMT_LMT_YN = 'N'         /*최대금액제한여부*/
+  --AND    (( CPN.CPN_VLD_DUR_TYP_CD = '100' /*고정기간*/ AND SYSDATE BETWEEN CPN.CPN_VLD_DUR_BGN_DTM AND CPN.CPN_VLD_DUR_END_DTM) /*사용기간*/
+  --        OR     (CPN.CPN_VLD_DUR_TYP_CD = '110' /*개별기간*/ AND CPN.CPN_VLD_DUR_STD_DDCNT > 0))
+  AND    NVL(PRDONL.WHL_CPN_EXPT_YN,'N') = 'N'    /*쿠폰적용제외여부 */
+    /* 쿠폰상품구분코드 100:전체, 200:온라인, 300:방송 */
+  AND ( NVL(CPN.CPN_PRD_TYP_CD ,'100') = '100'
+    OR( NVL(CPN.CPN_PRD_TYP_CD ,'100') = '200' AND PRD.ONL_PRD_YN='Y')
+    OR( NVL(CPN.CPN_PRD_TYP_CD ,'100') = '300' AND PRD.ONL_PRD_YN='N')
+    )
+    /*제한조건*/
+  AND    (CPN.TRT_CHNL_PRT_LMT_YN = 'N' /*대상_채널_발행_제한_여부*/
+    OR     (CPN.TRT_CHNL_PRT_LMT_YN = 'Y'
+        AND NOT EXISTS (SELECT 1
+                        FROM   TB_PD_CPN_PRT_IMPSS_CHNL CPIC
+                        WHERE  CPIC.CPN_ID = CPN.CPN_ID
+                          AND    CPIC.USE_YN = 'Y'
+                          AND    CPIC.MDA_CD = '110')))
+  AND    (CPN.TRT_SUPP_PRT_LMT_YN = 'N' /*대상_협력사_발행_제한_여부*/
+    OR     (CPN.TRT_SUPP_PRT_LMT_YN = 'Y'
+        AND    EXISTS ( SELECT 1
+                        FROM   TB_PD_CPN_PRT_SUPP CPS
+                        WHERE  CPS.USE_YN = 'Y'
+                          AND    CPS.SUPP_TYP_CD = '100'
+                          AND    CPS.CPN_ID = CPN.CPN_ID
+                          AND    CPS.SUPP_ID = PRD.SUPP_ID
+        )))
+  AND    (CPN.TRT_PRD_CLS_PRT_LMT_YN = 'N' /*대상_상품_분류_발행_제한_여부*/
+    OR     (CPN.TRT_PRD_CLS_PRT_LMT_YN = 'Y'
+        AND    EXISTS ( SELECT 1
+                        FROM   TB_PD_CPN_PRT_PRD_CLS PCLS
+                        WHERE  PCLS.CPN_ID = CPN.CPN_ID
+                          AND    PCLS.USE_YN = 'Y'
+                          AND    (
+                            (PCLS.PRD_CLS_LV = 1 AND PCLS.PRD_LCLS_ID = PRD.PRD_LCLS_ID)
+                                OR     (PCLS.PRD_CLS_LV = 2
+                                AND    PCLS.PRD_LCLS_ID = PRD.PRD_LCLS_ID
+                                AND    PCLS.PRD_MCLS_ID = PRD.PRD_MCLS_ID)
+                                OR     (PCLS.PRD_CLS_LV = 3
+                                AND    PCLS.PRD_LCLS_ID = PRD.PRD_LCLS_ID
+                                AND    PCLS.PRD_MCLS_ID = PRD.PRD_MCLS_ID
+                                AND    PCLS.PRD_SCLS_ID = PRD.PRD_SCLS_ID)
+                                OR     (PCLS.PRD_CLS_LV = 4
+                                AND    PCLS.PRD_LCLS_ID = PRD.PRD_LCLS_ID
+                                AND    PCLS.PRD_MCLS_ID = PRD.PRD_MCLS_ID
+                                AND    PCLS.PRD_SCLS_ID = PRD.PRD_SCLS_ID
+                                AND    PCLS.PRD_DCLS_ID = PRD.PRD_DCLS_ID)
+                            )
+        )
+              )
+    )
+  AND    (CPN.TRT_EXPT_SUPP_PRT_LMT_YN = 'N' /*대상_제외_협력사_발행_제한_여부*/
+    OR     (CPN.TRT_EXPT_SUPP_PRT_LMT_YN = 'Y'
+        AND    NOT EXISTS ( SELECT 1
+                            FROM   TB_PD_CPN_PRT_EXPT_SUPP CPES
+                            WHERE  CPES.CPN_ID = CPN.CPN_ID
+                              AND    CPES.SUPP_ID = PRD.SUPP_ID
+                              AND    CPES.USE_YN = 'Y' )))
+  AND    (CPN.TRT_EXPT_PRD_CLS_PRT_LMT_YN = 'N' /*대상_제외_상품_분류_발행_제한_여부*/
+    OR     (CPN.TRT_EXPT_PRD_CLS_PRT_LMT_YN = 'Y'
+        AND    NOT EXISTS ( SELECT 1
+                            FROM   TB_PD_CPN_PRT_EXPT_PRD_CLS PCLS
+                            WHERE  PCLS.CPN_ID = CPN.CPN_ID
+                              AND    PCLS.USE_YN = 'Y'
+                              AND    (
+                                (PCLS.PRD_CLS_LV = 1 AND PCLS.PRD_LCLS_ID = PRD.PRD_LCLS_ID)
+                                    OR     (PCLS.PRD_CLS_LV = 2
+                                    AND    PCLS.PRD_LCLS_ID = PRD.PRD_LCLS_ID
+                                    AND    PCLS.PRD_MCLS_ID = PRD.PRD_MCLS_ID)
+                                    OR     (PCLS.PRD_CLS_LV = 3
+                                    AND    PCLS.PRD_LCLS_ID = PRD.PRD_LCLS_ID
+                                    AND    PCLS.PRD_MCLS_ID = PRD.PRD_MCLS_ID
+                                    AND    PCLS.PRD_SCLS_ID = PRD.PRD_SCLS_ID)
+                                    OR     (PCLS.PRD_CLS_LV = 4
+                                    AND    PCLS.PRD_LCLS_ID = PRD.PRD_LCLS_ID
+                                    AND    PCLS.PRD_MCLS_ID = PRD.PRD_MCLS_ID
+                                    AND    PCLS.PRD_SCLS_ID = PRD.PRD_SCLS_ID
+                                    AND    PCLS.PRD_DCLS_ID = PRD.PRD_DCLS_ID)
+                                )
+        )
+              )
+    )
+  AND    (CPN.TRT_EXPT_PRD_PRT_LMT_YN = 'N' /*대상_제외_상품_발행_제한_여부*/
+    OR     (CPN.TRT_EXPT_PRD_PRT_LMT_YN = 'Y'
+        AND    NOT EXISTS ( SELECT 1
+                            FROM   TB_PD_CPN_PRT_EXPT_PRD CPEP
+                            WHERE  CPEP.CPN_ID = CPN.CPN_ID
+                              AND    CPEP.PRD_ID = PRD.PRD_ID
+                              AND    CPEP.USE_YN = 'Y' )))
+  AND    NOT EXISTS ( SELECT 1
+                      FROM   TB_PD_PRD_SL_IMPSS_CHNL PSIC
+                      WHERE  PSIC.PRD_ID = PRD.PRD_ID
+                        AND    PSIC.MDA_CD IN ('110') /*110 인터넷*/
+                        AND    PSIC.USE_YN = 'Y'
+)
+  AND    CPN.CPN_ONL_PATTN_CD = '100'
+;
+
+TYPE TYPE_CPN_LIST IS TABLE OF C_CPN_LIST%ROWTYPE INDEX BY BINARY_INTEGER;
+    T_CPN TYPE_CPN_LIST;
+CURSOR C_ARS_LIST IS
+SELECT
+    ARSDSN.PRD_ID AS GOODS_NO
+     , ARSDSN.ARS_DSN_AMT_BGN_DATE AS ARS_DC_AMT_STRT_DTIME
+     , ARSDSN.ARS_DSN_AMT_END_DATE AS ARS_DC_AMT_END_DATE
+     , NVL(ARSDSN.ARS_DSN_SELFCO_BRN_AMT, 0) AS ARS_DC_SELFCO_BD_AMT
+     , NVL(ARSDSN.ARS_DSN_SUPP_BRN_AMT, 0) AS ARS_DC_SUPP_BD_AMT
+FROM
+    TB_PD_PRD_ARS_DSN_AMT_CHG ARSDSN
+   , TB_PD_PRD PRD
+WHERE PRD.PRD_ID = ARSDSN.PRD_ID
+  AND PRD.USE_YN = 'Y'
+  AND PRD.PRD_APV_STS_CD = '310'
+  AND PRD.PRD_SL_STS_CD = '110'
+  AND PRD.ADD_COMP_PRD_YN = 'N'
+  AND PRD.ONL_PRD_YN = 'N' /*TV상품*/
+  AND TRUNC(SYSDATE) BETWEEN ARSDSN.ARS_DSN_AMT_BGN_DATE AND ARSDSN.ARS_DSN_AMT_END_DATE
+  AND ARSDSN.USE_YN = 'Y'
+;
+TYPE TYPE_ARS_LIST IS TABLE OF C_ARS_LIST%ROWTYPE INDEX BY BINARY_INTEGER;
+    T_ARS TYPE_ARS_LIST;
+    --MD팀장 승인 후 다시 MD등록으로 Rollback 된 경우 처리
+CURSOR C_HLD_GOODS_LIST IS
+SELECT PRD.PRD_ID AS GOODS_NO /*상품ID*/
+FROM   TB_PD_PRD PRD
+WHERE  PRD.USE_YN = 'Y' /*상품사용여부*/
+  AND    PRD.PRD_APV_STS_CD = '110' /*상품승인상태코드 MD등록*/
+  AND    PRD.PRD_SL_STS_CD = '100' /*상품판매상태코드*/
+  AND    PRD.ADD_COMP_PRD_YN = 'N' /*추가구성상품여부*/
+  AND    PRD.PRD_PATTN_CD IN ('100','300') /*100 일반, 200 사은품, 300 특수상품*/
+  AND    PRD.MDF_DTM >= V_BATCH_STRD_DTIME
+  AND    PRD.MDF_DTM < V_SYS_DTIME
+/* 그룹상품 커서 추가 2023.01.04 박장순 추가*/
+UNION ALL
+SELECT GPD.GP_PRD_ID AS GOODS_NO /*상품ID*/
+FROM   TB_PD_GP_PRD GPD
+WHERE  GPD.USE_YN = 'Y' /*상품사용여부*/
+  AND    GPD.DP_YN  = 'Y' /*전시여부 */
+  AND    V_SYS_DTIME BETWEEN GPD.DP_BGN_DTM AND GPD.DP_END_DTM
+  AND    GPD.GP_PRD_APV_STS_CD = '110' /*그룹상품상품승인상태코드 MD등록*/
+  AND    GPD.MDF_DTM >= V_BATCH_STRD_DTIME
+  AND    GPD.MDF_DTM < V_SYS_DTIME
+;
+TYPE TYPE_HLD_GOODS_LIST IS TABLE OF C_HLD_GOODS_LIST%ROWTYPE INDEX BY BINARY_INTEGER;
+    T_GOODS_HLD TYPE_HLD_GOODS_LIST;
+
+    FUNCTION F_GET_GOODS_MNL_CONT (P_GOODS_NO IN VARCHAR2)
+        RETURN CLOB
+        IS
+        V_MNL_CONT TF_GOODS_RETRV.GOODS_MNL_CONT%TYPE;
+BEGIN
+        V_MNL_CONT := '';
+FOR IDX IN (
+            SELECT CASE WHEN MNL.MNL_ENT_SP_CD = '100'
+                            THEN (SELECT MNL_ARC_DTL_NM
+                                  FROM   TB_PD_MNL_ARC_DTL DTL
+                                  WHERE  DTL.MNL_ARC_ID = MNL.ARC_ID
+                                    AND    DTL.MNL_ARC_DTL_ID = MNL.CONT
+                                    AND    DTL.USE_YN = 'Y')
+                        ELSE MNL.CONT
+                       END AS CONT
+            INTO   R_GOODS.GOODS_MNL_CONT
+            FROM   TB_PD_PRD_MNL MNL
+               , TB_PD_MNL_ARC ARC
+            WHERE  MNL.USE_YN = 'Y'
+              AND    MNL.WEB_EXPO_YN = 'Y'
+              AND    MNL.CST_EXPO_YN = 'Y'
+              AND    MNL.MNL_SRCH_TYP_CD != '130'
+              AND    MNL.ARC_ID = ARC.MNL_ARC_ID
+              AND    ARC.USE_YN = 'Y'
+              AND    MNL.PRD_ID = P_GOODS_NO
+            ) LOOP
+                V_MNL_CONT := V_MNL_CONT || IDX.CONT;
+END LOOP;
+RETURN V_MNL_CONT;
+END F_GET_GOODS_MNL_CONT;
+
+    /************************************************************
+     * BATCH LOG
+     ************************************************************/
+    PROCEDURE P_INSERT_BATCH_EXE_HIS IS
+        PRAGMA AUTONOMOUS_TRANSACTION;
+BEGIN
+INSERT INTO TF_BATCH_EXE_HIS (
+    BATCH_NO,
+    EXE_STRT_DTIME,
+    EXE_END_DTIME,
+    EXE_RSLT_CD,
+    EXE_RSLT,
+    REGMN_ID,
+    REG_DTIME,
+    MODMN_ID,
+    MOD_DTIME
+) VALUES (
+             1,
+             V_SYS_DTIME,
+             V_SYS_DTIME,
+             '0',
+             '',
+             V_USERID,
+             SYSDATE,
+             V_USERID,
+             SYSDATE
+         );
+COMMIT WORK;
+END;
+    /************************************************************
+     * BATCH LOG
+     ************************************************************/
+    PROCEDURE P_UPDATE_BATCH_EXE_HIS IS
+        PRAGMA AUTONOMOUS_TRANSACTION;
+BEGIN
+UPDATE TF_BATCH_EXE_HIS
+SET    EXE_END_DTIME = SYSDATE
+  , EXE_RSLT_CD = V_EXE_RSLT_CD
+  , EXE_RSLT = V_EXE_RSLT
+  , MODMN_ID = V_USERID
+  , MOD_DTIME = SYSDATE
+WHERE  BATCH_NO = 1
+  AND    EXE_STRT_DTIME = V_SYS_DTIME
+;
+COMMIT WORK;
+END;
+/****************************************************************************************************
+* START PROCEDURE
+*****************************************************************************************************/
+BEGIN
+    V_SYS_DTIME := SYSDATE;
+    --실행중인 배치가 있는 경우 SKIP
+BEGIN
+SELECT COUNT(1)
+INTO   V_CNT
+FROM   TF_BATCH_EXE_HIS
+WHERE  EXE_STRT_DTIME > SYSDATE - 1
+  AND    BATCH_NO = 1
+  AND    EXE_RSLT_CD = '0'
+;
+IF V_CNT > 0 THEN
+            --BATCH LOG 등록
+            P_INSERT_BATCH_EXE_HIS();
+            V_EXE_RSLT_CD := 9;
+            V_EXE_RSLT := '실패 실행중배치 존재';
+            P_UPDATE_BATCH_EXE_HIS();
+            RETURN;
+END IF;
+EXCEPTION WHEN OTHERS THEN
+        --BATCH LOG 등록
+        P_INSERT_BATCH_EXE_HIS();
+        V_EXE_RSLT_CD := 9;
+        V_EXE_RSLT := '실패 실행중배치 체크 오류' || ' ' || SQLERRM;
+        P_UPDATE_BATCH_EXE_HIS();
+        RETURN;
+END;
+    IF NVL(in_strd_dtime, 'XX') = 'XX' THEN
+BEGIN
+SELECT /*+INDEX_DESC(BEH PK_BATCH_EXE_HIS)*/
+    EXE_STRT_DTIME - 1/48        /*30분 전 데이터까지 포함 mview 로 인한 로스때문에*/
+INTO   V_BATCH_STRD_DTIME
+FROM   TF_BATCH_EXE_HIS BEH
+WHERE  SYSDATE > EXE_STRT_DTIME
+  AND    BATCH_NO = 1
+  AND    EXE_RSLT_CD = 1
+  AND    ROWNUM = 1
+;
+EXCEPTION WHEN NO_DATA_FOUND THEN
+            --V_BATCH_STRD_DTIME := SYSDATE - 1/12;                     -- 1시간 이전
+            V_BATCH_STRD_DTIME := TO_DATE('20150101', 'YYYYMMDD');
+END;
+ELSE
+        V_BATCH_STRD_DTIME := TO_DATE(in_strd_dtime, 'YYYYMMDDHH24MISS');
+END IF;
+    --BATCH LOG 등록
+    P_INSERT_BATCH_EXE_HIS();
+OPEN C_GOODS_LIST;
+FETCH C_GOODS_LIST
+    BULK COLLECT INTO T_GOODS;
+CLOSE C_GOODS_LIST;
+IF T_GOODS.COUNT > 0 THEN
+        FOR idx IN T_GOODS.FIRST .. T_GOODS.LAST
+            LOOP
+                --초기화
+                R_GOODS := NULL;
+                R_GOODS_EXT := NULL;
+                R_GOODS.GOODS_NO := T_GOODS(IDX).GOODS_NO;
+                R_GOODS_EXT.GOODS_NO := T_GOODS(IDX).GOODS_NO;
+                R_GOODS.GOODS_NM := T_GOODS(idx).GOODS_NM;
+                R_GOODS.ONL_GOODS_NM := T_GOODS(idx).ONL_GOODS_NM;
+                R_GOODS.ITEM_NO := CASE WHEN T_GOODS(idx).GRP_GOODS_YN = 'N' THEN T_GOODS(idx).ITEM_NO ELSE NULL END; /*그룹상품 단품번호 RESET 2023.01.04 박장순 추가 */
+                R_GOODS.SALE_STAT_CD := T_GOODS(idx).SALE_STAT_CD;
+                R_GOODS.INTF_INTT_YN := T_GOODS(idx).INTF_INTT_YN;
+                R_GOODS.INTF_INTT_MMS := T_GOODS(idx).INTF_INTT_MMS;
+                R_GOODS.DEAL_GOODS_YN := T_GOODS(idx).DEAL_GOODS_YN;
+                R_GOODS.TV_GOODS_YN := T_GOODS(idx).TV_GOODS_YN;
+                R_GOODS.EC_GOODS_YN := T_GOODS(idx).EC_GOODS_YN;
+                --             , PRD.ORD_DLVF_YN          /*주문배송비여부 N=무료*/
+--             , NVL(TO_NUMBER(CD1.CD_VAL_NM), 0) AS ORD_DLVF_CD_VAL  /*주문배송비코드값-배송비*/
+--             , PRD.F_DLV_STD_CD                 /*무료배송기준코드*/
+--             , PRD.F_DLV_STD_UNIT               /*무료배송기준단위*/
+--             , PRD.DLVF_IMPOSE_STD_CD           /*배송비부과기준코드*/
+--             , PRD.DLVF_IMPOSE_STD_UNIT         /*배송비부과기준단위*/
+                R_GOODS.SUPP_ID := T_GOODS(idx).SUPP_ID;
+                R_GOODS.SUPP_NM := T_GOODS(idx).SUPP_NM;
+                R_GOODS.BRND_ID := T_GOODS(idx).BRND_ID;
+                R_GOODS.BRND_NM := T_GOODS(idx).BRND_NM;
+                --상품분류, 전시카테고리 정보
+                R_GOODS.GOODS_CLS_ID := T_GOODS(IDX).GOODS_CLS_ID;
+                R_GOODS_EXT.GOODS_LCLS_ID := T_GOODS(IDX).GOODS_LCLS_ID;
+                R_GOODS_EXT.GOODS_MCLS_ID := T_GOODS(IDX).GOODS_MCLS_ID;
+                R_GOODS_EXT.GOODS_SCLS_ID := T_GOODS(idx).GOODS_SCLS_ID;
+                R_GOODS_EXT.GOODS_DCLS_ID := T_GOODS(IDX).GOODS_CLS_ID;     /* 2022.12.29 상품세분류ID 추가 박장순 */
+--            R_GOODS.IMG_URL := T_GOODS(idx).IMG_URL;
+                R_GOODS.RETRV_WD := T_GOODS(idx).RETRV_WD;
+                --            R_GOODS.GOODS_WEB_MNL_CONT := T_GOODS(idx).GOODS_WEB_MNL_CONT;
+--            R_GOODS.GOODS_MNL_CONT := T_GOODS(idx).GOODS_MNL_CONT;
+                R_GOODS.GOODS_REG_DTIME := T_GOODS(idx).GOODS_REG_DTIME;
+                R_GOODS.ADULT_GOODS_YN := 'N';
+                R_GOODS.DLV_MTD_CD := T_GOODS(idx).DLV_MTD_CD;
+                R_GOODS.ARS_DC_SELFCO_BD_AMT := 0;
+                R_GOODS.ARS_DC_SUPP_BD_AMT := 0;
+                --16.01.14 추가 온라인 상품정보 테이블 분리로 인한 데이터 추가처리
+                R_GOODS.DEAL_APLY_STRT_DTIME := T_GOODS(idx).DEAL_APLY_STRT_DTIME;
+                R_GOODS.DEAL_APLY_END_DTIME := T_GOODS(idx).DEAL_APLY_END_DTIME;
+                R_GOODS.MAX_ORD_PSB_QTY := T_GOODS(idx).MAX_ORD_PSB_QTY;
+                R_GOODS.INSD_RETRV_EXCL_YN := T_GOODS(idx).INSD_RETRV_EXCL_YN;
+                R_GOODS.ONL_PRD_TYP_CD := T_GOODS(idx).ONL_PRD_TYP_CD;
+                --16.02.15 제품유형코드 추가
+                R_GOODS.MANPRD_PATTN_CD := T_GOODS(idx).MANPRD_PATTN_CD;
+                --16.03.04 배송특성코드 추가
+                R_GOODS.DLV_CHRC_CD := T_GOODS(idx).DLV_CHRC_CD;
+                --16.03.24 MD코드 추가
+                R_GOODS.MD_ID := T_GOODS(idx).MD_ID;
+                --16.12.27 임직원 상품여부 추가
+                R_GOODS.EMP_GOODS_YN := T_GOODS(idx).EMP_GOODS_YN;
+                --17.02.21 엔진페이지 제외 여부 추가
+                R_GOODS.EP_EXCL_YN  := T_GOODS(idx).EP_EXCL_YN ;
+                --17.03.10 모바일 할인 제외 여부 추가
+                R_GOODS.MOBILE_DC_EXCL_YN  := T_GOODS(idx).MOBILE_DC_EXCL_YN ;
+                --17.05.25 상품 형태 코드 추가
+                R_GOODS.GOODS_SP_CD  := T_GOODS(idx).GOODS_SP_CD ;
+                --17.07.19 모바일 적립금 제외 여부 추가
+                R_GOODS.MOBILE_PNM_EXCL_YN  := T_GOODS(idx).MOBILE_PNM_EXCL_YN ;
+                --18.01.04 배송비 착불 시 무료배송으로 처리
+                R_GOODS.COD_YN  := T_GOODS(idx).COD_YN ;
+                --온라인_상품_검색_명 추가
+                R_GOODS.ONL_GOODS_RETRV_WD_1  := T_GOODS(idx).ONL_GOODS_RETRV_WD_1 ;
+                R_GOODS.ONL_GOODS_RETRV_WD_2  := T_GOODS(idx).ONL_GOODS_RETRV_WD_2 ;
+                R_GOODS.ONL_GOODS_RETRV_WD_3  := T_GOODS(idx).ONL_GOODS_RETRV_WD_3 ;
+                R_GOODS.ONL_GOODS_RETRV_WD_4  := T_GOODS(idx).ONL_GOODS_RETRV_WD_4 ;
+                R_GOODS.ONL_GOODS_RETRV_WD_5  := T_GOODS(idx).ONL_GOODS_RETRV_WD_5 ;
+                R_GOODS.ONL_GOODS_RETRV_WD_6  := T_GOODS(idx).ONL_GOODS_RETRV_WD_6 ;
+                --21.01.10 전통시장, 상품준비노출일시, 상품동영상등록여부 추가
+                R_GOODS_EXT.TRDIT_MRKT_GOODS_YN   := T_GOODS(idx).TRDIT_MRKT_GOODS_YN ;
+                R_GOODS_EXT.GOODS_PREP_SHOW_STRT_DTIME   := T_GOODS(idx).GOODS_PREP_SHOW_STRT_DTIME ;
+                R_GOODS_EXT.GOODS_PREP_SHOW_END_DTIME   := T_GOODS(idx).GOODS_PREP_SHOW_END_DTIME ;
+                --21.02.02 상품 구분 코드 추가 (MLC 상품구분 유형)
+                R_GOODS.GOODS_SCT_CD  := T_GOODS(idx).GOODS_SCT_CD ;
+                --21.04.12 상품운영형태코드 추가
+                R_GOODS.GOODS_OPER_SP_CD  := T_GOODS(idx).GOODS_OPER_SP_CD ;
+                --23.01.04 그룹상품여부 추가
+                R_GOODS.GRP_GOODS_YN := T_GOODS(idx).GRP_GOODS_YN ;
+                --25.03.24 상품특성 추가
+                R_GOODS.GOODS_CHRC_CD := T_GOODS(idx).GOODS_CHRC_CD ;
+
+                --변경된 상품정보로 MERGE 처리 하기
+SELECT COUNT(1)
+INTO   V_CNT
+FROM   TF_GOODS_RETRV
+WHERE  GOODS_NO = R_GOODS.GOODS_NO
+;
+IF V_CNT > 0 THEN
+                    /**
+                     * UPDATE TF_GOODS_RETRV 전 배송비 계산
+                     */
+                    V_TEMP_SALE_PRC := 0;
+BEGIN
+SELECT SALE_PRC INTO V_TEMP_SALE_PRC  FROM TF_GOODS_RETRV WHERE  GOODS_NO = R_GOODS.GOODS_NO;
+EXCEPTION WHEN NO_DATA_FOUND THEN
+                        NULL;
+END;
+                    -- 그룹상품 주문배송비 여부 로직 제외 2023.01.04 박장순 추가
+                    IF T_GOODS(idx).GRP_GOODS_YN != 'Y' THEN
+                        -- 주문배송비여부(ORD_DLVF_YN) 값이 Y 이고 주문배송비코드값-배송비 (ORD_DLVF_CD_VAL) 값이 0 보다 클 경우 아래 로직 비교 아니라면 무배 끝
+                        IF T_GOODS(idx).ORD_DLVF_YN = 'Y' AND NVL(T_GOODS(idx).ORD_DLVF_CD_VAL, 0) > 0 THEN
+                            --        무료배송기준코드 (F_DLV_STD_CD) 값이 200(수량)
+                            IF T_GOODS(idx).F_DLV_STD_CD = '200' THEN
+                                IF NVL(T_GOODS(idx).F_DLV_STD_UNIT, 0) <= 1 THEN
+                                    R_GOODS.FREE_DLV_YN := 'Y';
+                                    R_GOODS.DLV_COST := 0;
+ELSE
+                                    R_GOODS.FREE_DLV_YN := 'N';
+                                    R_GOODS.DLV_COST := T_GOODS(idx).ORD_DLVF_CD_VAL;
+END IF;
+                                --        무료배송기준코드 (F_DLV_STD_CD) 값이 100(금액)
+                            ELSIF T_GOODS(idx).F_DLV_STD_CD = '100' THEN
+                                IF NVL(T_GOODS(idx).F_DLV_STD_UNIT, 0) <= 0 THEN
+                                    R_GOODS.FREE_DLV_YN := 'Y';
+                                    R_GOODS.DLV_COST := 0;
+                                ELSIF NVL(T_GOODS(idx).F_DLV_STD_UNIT, 0) <=  V_TEMP_SALE_PRC THEN
+                                    R_GOODS.FREE_DLV_YN := 'Y';
+                                    R_GOODS.DLV_COST := 0;
+ELSE
+                                    R_GOODS.FREE_DLV_YN := 'N';
+                                    R_GOODS.DLV_COST := T_GOODS(idx).ORD_DLVF_CD_VAL;
+END IF;
+                                -- 무료배송키준코드 (F_DLV_STD_CD) 값이 300 (무조건 유료)
+                            ELSIF T_GOODS(idx).F_DLV_STD_CD = '300' THEN
+                                R_GOODS.FREE_DLV_YN := 'N';
+                                R_GOODS.DLV_COST := T_GOODS(IDX).ORD_DLVF_CD_VAL;
+END IF;
+                            --        주문배송비가 0 이거나 N 일 경우
+ELSE
+                            R_GOODS.FREE_DLV_YN := 'Y';
+                            R_GOODS.DLV_COST := 0;
+                            -- 무료배송키준코드 (F_DLV_STD_CD) 값이 400 (착불|착불배송비는 상품상세 설명으로 유도)
+                            IF T_GOODS(IDX).F_DLV_STD_CD = '400' THEN
+                                R_GOODS.COD_YN := 'Y';
+ELSE
+                                R_GOODS.COD_YN := 'N';
+END IF;
+END IF;
+ELSE
+                        R_GOODS.FREE_DLV_YN := 'N';
+                        R_GOODS.DLV_COST := 0;
+END IF;
+                    /**
+                     * UPDATE TF_GOODS_RETRV
+                     */
+UPDATE TF_GOODS_RETRV
+SET
+    GOODS_NM     = R_GOODS.GOODS_NM
+  , SALE_STAT_CD = R_GOODS.SALE_STAT_CD
+  , FREE_DLV_YN = R_GOODS.FREE_DLV_YN
+  , DLV_COST = R_GOODS.DLV_COST
+  , INTF_INTT_YN = R_GOODS.INTF_INTT_YN
+  , INTF_INTT_MMS = R_GOODS.INTF_INTT_MMS
+  , DEAL_GOODS_YN = R_GOODS.DEAL_GOODS_YN
+  , TV_GOODS_YN = R_GOODS.TV_GOODS_YN
+--                     , EC_GOODS_YN = R_GOODS.EC_GOODS_YN
+--                     , L_DISP_CAT_NO = R_GOODS.L_DISP_CAT_NO
+--                     , L_DISP_CAT_NM = R_GOODS.L_DISP_CAT_NM
+--                     , M_DISP_CAT_NO = R_GOODS.M_DISP_CAT_NO
+--                     , M_DISP_CAT_NM = R_GOODS.M_DISP_CAT_NM
+--                     , S_DISP_CAT_NO = R_GOODS.S_DISP_CAT_NO
+--                     , S_DISP_CAT_NM = R_GOODS.S_DISP_CAT_NM
+--                     , D_DISP_CAT_NO = R_GOODS.D_DISP_CAT_NO
+--                     , D_DISP_CAT_NM = R_GOODS.D_DISP_CAT_NM
+  , RETRV_WD = R_GOODS.RETRV_WD
+  , ADULT_GOODS_YN = R_GOODS.ADULT_GOODS_YN
+  , DEL_YN = CASE
+                 WHEN R_GOODS.SALE_STAT_CD = '130' OR R_GOODS.SALE_STAT_CD = '100' THEN 'Y'  --100:판매준비, 130:판매불가
+                 WHEN (SELECT NVL(MAX(DECODE(MDA_CD, '110', 'Y')), 'N')
+                       FROM   TB_PD_PRD_SL_IMPSS_CHNL  --노출채널여부
+                       WHERE  PRD_ID = R_GOODS.GOODS_NO
+                         AND    MDA_CD = '110'
+                         AND    USE_YN = 'Y') = 'Y' THEN 'Y'
+                 ELSE 'N'  --110:판매가능, 120:일시품절
+    END
+  , DLV_MTD_CD = R_GOODS.DLV_MTD_CD
+  , BRND_ID = R_GOODS.BRND_ID
+  , BRND_NM = R_GOODS.BRND_NM
+  , MOD_DTIME = V_SYS_DTIME
+  , ONL_GOODS_NM = R_GOODS.ONL_GOODS_NM
+  , DEAL_APLY_STRT_DTIME = R_GOODS.DEAL_APLY_STRT_DTIME
+  , DEAL_APLY_END_DTIME = R_GOODS.DEAL_APLY_END_DTIME
+  , MAX_ORD_PSB_QTY = R_GOODS.MAX_ORD_PSB_QTY
+  , INSD_RETRV_EXCL_YN = R_GOODS.INSD_RETRV_EXCL_YN
+  , ONL_PRD_TYP_CD = R_GOODS.ONL_PRD_TYP_CD
+  , MANPRD_PATTN_CD = R_GOODS.MANPRD_PATTN_CD
+  , DLV_CHRC_CD = R_GOODS.DLV_CHRC_CD
+  , MD_ID = R_GOODS.MD_ID
+  , EMP_GOODS_YN = R_GOODS.EMP_GOODS_YN
+  , EP_EXCL_YN  = R_GOODS.EP_EXCL_YN
+  , MOBILE_DC_EXCL_YN  = R_GOODS.MOBILE_DC_EXCL_YN
+  , EP_MOD_DTIME = V_SYS_DTIME
+  , GOODS_SP_CD = R_GOODS.GOODS_SP_CD
+  , MOBILE_PNM_EXCL_YN  = R_GOODS.MOBILE_PNM_EXCL_YN
+  , COD_YN = R_GOODS.COD_YN
+  , ONL_GOODS_RETRV_WD_1 = R_GOODS.ONL_GOODS_RETRV_WD_1
+  , ONL_GOODS_RETRV_WD_2 = R_GOODS.ONL_GOODS_RETRV_WD_2
+  , ONL_GOODS_RETRV_WD_3 = R_GOODS.ONL_GOODS_RETRV_WD_3
+  , ONL_GOODS_RETRV_WD_4 = R_GOODS.ONL_GOODS_RETRV_WD_4
+  , ONL_GOODS_RETRV_WD_5 = R_GOODS.ONL_GOODS_RETRV_WD_5
+  , ONL_GOODS_RETRV_WD_6 = R_GOODS.ONL_GOODS_RETRV_WD_6
+  , GOODS_SCT_CD = R_GOODS.GOODS_SCT_CD
+  , GOODS_OPER_SP_CD = R_GOODS.GOODS_OPER_SP_CD
+  , GOODS_CHRC_CD = R_GOODS.GOODS_CHRC_CD
+WHERE  GOODS_NO = R_GOODS.GOODS_NO
+;
+/**
+ * UPDATE TF_GOODS_RETRV_EXT
+ */
+UPDATE TF_GOODS_RETRV_EXT
+SET
+    TRDIT_MRKT_GOODS_YN         = R_GOODS_EXT.TRDIT_MRKT_GOODS_YN
+  ,GOODS_PREP_SHOW_STRT_DTIME = R_GOODS_EXT.GOODS_PREP_SHOW_STRT_DTIME
+  ,GOODS_PREP_SHOW_END_DTIME  = R_GOODS_EXT.GOODS_PREP_SHOW_END_DTIME
+WHERE GOODS_NO = R_GOODS.GOODS_NO
+;
+V_U_CNT := V_U_CNT + 1;
+ELSE
+                    --INSERT MAYBE NEW GOODS
+                    R_GOODS.REG_DTIME := V_SYS_DTIME;
+                    R_GOODS.MOD_DTIME := V_SYS_DTIME;
+                    IF R_GOODS.SALE_STAT_CD = '130' THEN
+                        R_GOODS.DEL_YN := 'Y';
+ELSE
+SELECT NVL(MAX(DECODE(MDA_CD, '110', 'Y')), 'N')
+INTO   R_GOODS.DEL_YN
+FROM   TB_PD_PRD_SL_IMPSS_CHNL
+WHERE  PRD_ID = R_GOODS.GOODS_NO
+  AND    MDA_CD = '110'   /*인터넷*/
+  AND    USE_YN = 'Y'
+;
+END IF;
+BEGIN
+SELECT MAX(DECODE(RNK, 1, DISP_CAT_NO)) AS L_DISP_CAT_NO
+     , MAX(DECODE(RNK, 1, DISP_CAT_NM)) AS L_DISP_CAT_NM
+     , MAX(DECODE(RNK, 2, DISP_CAT_NO)) AS M_DISP_CAT_NO
+     , MAX(DECODE(RNK, 2, DISP_CAT_NM)) AS M_DISP_CAT_NM
+     , MAX(DECODE(RNK, 3, DISP_CAT_NO)) AS S_DISP_CAT_NO
+     , MAX(DECODE(RNK, 3, DISP_CAT_NM)) AS S_DISP_CAT_NM
+     , MAX(DECODE(RNK, 4, DISP_CAT_NO)) AS D_DISP_CAT_NO
+     , MAX(DECODE(RNK, 4, DISP_CAT_NM)) AS D_DISP_CAT_NM
+INTO   R_GOODS.L_DISP_CAT_NO
+    , R_GOODS.L_DISP_CAT_NM
+    , R_GOODS.M_DISP_CAT_NO
+    , R_GOODS.M_DISP_CAT_NM
+    , R_GOODS.S_DISP_CAT_NO
+    , R_GOODS.S_DISP_CAT_NM
+    , R_GOODS.D_DISP_CAT_NO
+    , R_GOODS.D_DISP_CAT_NM
+FROM   (SELECT ROW_NUMBER() OVER(ORDER BY LEVEL DESC) AS RNK
+                                     , A.DISP_CAT_NO
+             , A.DISP_CAT_NM
+        FROM   TF_DISP_CAT A
+        WHERE  A.USE_YN = 'Y'
+          AND    A.DISP_CAT_NO <> 20000
+            START WITH A.DISP_CAT_NO = (
+            SELECT DISP_CAT_NO
+            FROM   TF_CAT_CLS_LNK
+            WHERE  GOODS_CLS_ID = T_GOODS(idx).GOODS_CLS_ID
+            )
+        CONNECT BY PRIOR A.UPR_DISP_CAT_NO = A.DISP_CAT_NO )
+;
+EXCEPTION WHEN NO_DATA_FOUND THEN
+                        NULL;
+END;
+                    --TV, EC 상품여부
+--                BEGIN
+--                    SELECT NVL(MAX(DECODE(MDA_CD, '100', 'N')), 'Y')
+--                         , NVL(MAX(DECODE(MDA_CD, '110', 'N')), 'Y')
+--
+--                    INTO   R_GOODS.TV_GOODS_YN
+--                         , R_GOODS.EC_GOODS_YN
+--                    FROM   TB_PD_PRD_SL_IMPSS_CHNL
+--                    WHERE  PRD_ID = R_GOODS.GOODS_NO
+--                    AND    USE_YN = 'Y'
+--                    ;
+--                EXCEPTION WHEN NO_DATA_FOUND THEN
+--                    NULL;
+--                END;
+                    -- 대표이미지 정보
+
+BEGIN
+                        IF R_GOODS.GRP_GOODS_YN = 'N' THEN
+SELECT PI.PRD_IMG_ID
+     , CASE
+           WHEN PI.PRD_IMG_FILE_NM IS NOT NULL THEN '/' || SUBSTR(PI.PRD_ID, 7) || '/' || SUBSTR(PI.PRD_ID, 5, 2) || '/' || SUBSTR(PI.PRD_ID, 3, 2) || '/' || PI.PRD_IMG_FILE_NM || '_200x200.' || NVL(PI.PRD_IMG_FILE_EXTNS, 'jpg')
+           ELSE ''
+    END
+INTO   R_GOODS.GOODS_IMG_ID
+    , R_GOODS.IMG_URL
+FROM   TB_PD_PRD_IMG PI
+WHERE  PI.PRD_ID = R_GOODS.GOODS_NO
+  AND    PI.DLG_YN = 'Y'
+  AND    PI.USE_YN = 'Y'
+  AND    PI.PRD_IMG_FILE_NM IS NOT NULL
+  AND    ROWNUM = 1
+;
+ELSE
+                            /* 그룹상품 노출이미지 추출 100: 그룹상품이미지 200: 대표상품이미지 2023.01.04 박장순 추가*/
+SELECT PI.PRD_IMG_ID
+     , CASE
+           WHEN PI.PRD_IMG_FILE_NM IS NOT NULL THEN '/' || SUBSTR(PI.PRD_ID, 7) || '/' || SUBSTR(PI.PRD_ID, 5, 2) || '/' || SUBSTR(PI.PRD_ID, 3, 2) || '/' || PI.PRD_IMG_FILE_NM || '_200x200.' || NVL(PI.PRD_IMG_FILE_EXTNS, 'jpg')
+           ELSE ''
+    END
+INTO   R_GOODS.GOODS_IMG_ID
+    , R_GOODS.IMG_URL
+FROM   TB_PD_PRD_IMG PI
+WHERE  PI.PRD_ID = CASE WHEN T_GOODS(idx).THMIMG_EXPO_TP_CD = '100' THEN  R_GOODS.GOODS_NO
+                        ELSE T_GOODS(idx).DLG_GOODS_NO
+    END
+  AND    PI.DLG_YN = 'Y'
+  AND    PI.USE_YN = 'Y'
+  AND    PI.PRD_IMG_FILE_NM IS NOT NULL
+  AND    ROWNUM = 1
+;
+END IF;
+EXCEPTION WHEN NO_DATA_FOUND THEN
+                        R_GOODS.EC_GOODS_YN := 'N';
+END;
+                    --현시점의 접두어/접미어
+BEGIN
+SELECT /*+INDEX_DESC(GPS PK_GOODS_PFX_SFX)*/
+    PFX_NM
+     , PFX_COLOR_CD
+     , PFX_FONT_BOLD_YN
+     , SFX_CD
+     , DISP_STRT_DTIME
+     , DISP_END_DTIME
+INTO   R_GOODS.PFX_NM
+    , R_GOODS.PFX_COLOR_CD
+    , R_GOODS.PFX_FONT_BOLD_YN
+    , R_GOODS.SFX_CD
+    , R_GOODS.PFX_SFX_STRT_DTIME
+    , R_GOODS.PFX_SFX_END_DTIME
+FROM   TF_GOODS_PFX_SFX GPS
+WHERE  DISP_STRT_DTIME <= V_SYS_DTIME
+  AND    DISP_END_DTIME > V_SYS_DTIME
+  AND    GOODS_NO = R_GOODS.GOODS_NO
+  AND    ROWNUM = 1
+;
+EXCEPTION WHEN NO_DATA_FOUND THEN
+                        R_GOODS.PFX_NM := NULL;
+                        R_GOODS.PFX_COLOR_CD := NULL;
+                        R_GOODS.PFX_FONT_BOLD_YN := 'N';
+                        R_GOODS.SFX_CD := NULL;
+                        R_GOODS.PFX_SFX_STRT_DTIME := NULL;
+                        R_GOODS.PFX_SFX_END_DTIME := NULL;
+END;
+                    --현시점의 대표단품가격
+BEGIN
+SELECT TRUNC(UPC.UPRC)
+     , PRC_BGN_DTM
+     , PRC_END_DTM
+INTO   R_GOODS.SALE_PRC
+    , R_GOODS.SALE_PRC_STRT_DTIME
+    , R_GOODS.SALE_PRC_END_DTIME
+FROM   TB_PD_UNT_PRC_CHG UPC
+WHERE  UPC.USE_YN = 'Y'
+  AND    UPC.PRC_APV_STS_CD = '310'   /*MD팀장승인*/
+  AND    V_SYS_DTIME BETWEEN UPC.PRC_BGN_DTM AND UPC.PRC_END_DTM
+  AND    UPC.PRD_ID = CASE WHEN R_GOODS.GRP_GOODS_YN = 'N' THEN R_GOODS.GOODS_NO ELSE T_GOODS(idx).DLG_GOODS_NO END /*그룹상품일때 대표상품번호 적용 2023.01.04 박장순 추가*/
+  AND    UPC.UNT_ID = T_GOODS(idx).ITEM_NO
+  AND    ROWNUM = 1
+;
+EXCEPTION WHEN NO_DATA_FOUND THEN
+                        R_GOODS.SALE_PRC := 0;
+                        R_GOODS.SALE_PRC_STRT_DTIME := NULL;
+                        R_GOODS.SALE_PRC_END_DTIME := NULL;
+END;
+                    --현시점의 상품 동영상 등록 여부
+BEGIN
+SELECT USE_YN
+INTO   R_GOODS_EXT.GOODS_VIDEO_REG_YN
+FROM TB_PD_PRD_MOV A
+WHERE A.PRD_MOV_ID = ( SELECT MAX(PRD_MOV_ID) KEEP(DENSE_RANK FIRST ORDER BY PRD_MOV_ID DESC) AS MID
+                       FROM TB_PD_PRD_MOV
+                       WHERE PRD_ID = CASE WHEN R_GOODS.GRP_GOODS_YN = 'N' THEN R_GOODS.GOODS_NO ELSE T_GOODS(idx).DLG_GOODS_NO END ) /*그룹상품일때 대표상품번호 적용 2023.01.04 박장순 추가*/
+;
+EXCEPTION WHEN NO_DATA_FOUND THEN
+                        R_GOODS_EXT.GOODS_VIDEO_REG_YN := 'N';
+END;
+                    --상품기술서내용
+                    IF R_GOODS.GRP_GOODS_YN = 'N' THEN  /*일반상품만 상품기술서내용 추출 2023.01.03 박장순 추가*/
+                        R_GOODS.GOODS_MNL_CONT := F_GET_GOODS_MNL_CONT(R_GOODS.GOODS_NO);
+ELSE
+                        R_GOODS.GOODS_MNL_CONT := NULL;
+END IF;
+                    --다운로드쿠폰
+                    R_GOODS.CPN_ID := NULL;
+                    R_GOODS.CPN_NM := NULL;
+                    R_GOODS.CPN_STRT_DTIME := NULL;
+                    R_GOODS.CPN_END_DTIME := NULL;
+                    R_GOODS.CPN_RTAMT_TP_CD := NULL;
+                    R_GOODS.CPN_DC_RTAMT := 0;
+                    --프로모션가격할인
+                    R_GOODS.PR_ID := NULL;
+                    R_GOODS.PR_NM := NULL;
+                    R_GOODS.PR_STRT_DTIME := NULL;
+                    R_GOODS.PR_END_DTIME := NULL;
+                    R_GOODS.PR_RTAMT_TP_CD := NULL;
+                    R_GOODS.PR_DC_RTAMT := 0;
+                    -- 프로모션 혜택 유형 2023.01.04 박장순 추가
+                    R_GOODS.PMT_PRC_DSN_YN := 'N';
+                    R_GOODS.PMT_PNM_YN := 'N';
+                    R_GOODS.PMT_GFT_YN := 'N';
+                    --정렬항목
+                    R_GOODS.SALE_QTY := 0;
+                    R_GOODS.CLCK_CNT := 0;
+                    R_GOODS.GOODS_ASSMT_CNT := 0;
+                    R_GOODS.AVG_STFD_VAL := 0;
+                    R_GOODS.TERM_SALE_QTY := 0;
+                    R_GOODS.TERM_SALE_QTY_2 := 0;
+                    R_GOODS.ALL_CH_TERM_SALE_QTY := 0;
+                    -- 기본값 설정 2023.03.23 박장순 추가
+                    R_GOODS.WISHLST_CNT := 0;
+                    R_GOODS.WISHLST_CNT_90 := 0;
+                    R_GOODS.GOODS_ASSMT_CNT_90 := 0;
+                    R_GOODS.AVG_STFD_VAL_90 := 0;
+
+                    /**
+                     * INSERT TF_GOODS_RETRV
+                     */
+INSERT INTO TF_GOODS_RETRV VALUES R_GOODS;
+--집계 확장테이블 기초데이터 생성
+INSERT INTO TF_GOODS_RETRV_EXT
+VALUES (
+         R_GOODS_EXT.GOODS_NO  /*상품_번호*/
+       ,'N'              /*재고 품절 여부*/
+       ,SYSDATE          /*재고 품절 수정 일시*/
+       ,SYSDATE          /*수정 일자*/
+       ,R_GOODS_EXT.GOODS_LCLS_ID          /*상품_대분류_아이디*/
+       ,R_GOODS_EXT.GOODS_MCLS_ID          /*상품_중분류_아이디*/
+       ,R_GOODS_EXT.GOODS_SCLS_ID          /*상품_소분류_아이디*/
+       ,0                           /*주간 판매 포인트*/
+       ,'N' /*상품 모든단품 판매가 동일 여부 */
+       ,R_GOODS_EXT.TRDIT_MRKT_GOODS_YN /*전통시장 상품 여부*/
+       ,R_GOODS_EXT.GOODS_PREP_SHOW_STRT_DTIME   /*상품 준비 노출 시작 일시*/
+       ,R_GOODS_EXT.GOODS_PREP_SHOW_END_DTIME    /*상품 준비 노출 종료 일시*/
+       ,R_GOODS_EXT.GOODS_VIDEO_REG_YN           /*상품 동영상 등록 여부*/
+       ,R_GOODS_EXT.GOODS_DCLS_ID                /*상품_세분류_아이디*/
+       );
+--기본카테고리에 상품 입력
+IF NVL(R_GOODS.D_DISP_CAT_NO, 0) > 0 THEN
+                        INSERT INTO TF_DISP_CAT_GOODS_LNK (
+                            DISP_CAT_NO, GOODS_NO, DISP_SEQ_NO, DISP_STRT_DTIME, DISP_END_DTIME, REGMN_ID, REG_DTIME, MODMN_ID, MOD_DTIME
+                        )
+SELECT R_GOODS.D_DISP_CAT_NO,
+       R_GOODS.GOODS_NO,
+       (SELECT NVL(MAX(DISP_SEQ_NO), 0) + 1
+        FROM   TF_DISP_CAT_GOODS_LNK
+        WHERE  DISP_CAT_NO = R_GOODS.D_DISP_CAT_NO) AS DISP_SEQ_NO,
+       TRUNC(SYSDATE),
+       TO_DATE('2999/12/31 00:00:00', 'YYYY/MM/DD HH24:MI:SS'),
+       V_USERID, V_SYS_DTIME, V_USERID, V_SYS_DTIME
+FROM DUAL
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM   TF_DISP_CAT_GOODS_LNK
+    WHERE  DISP_CAT_NO = R_GOODS.D_DISP_CAT_NO
+      AND    GOODS_NO = R_GOODS.GOODS_NO
+)
+;
+END IF;
+                    V_I_CNT := V_I_CNT + 1;
+END IF;
+END LOOP;
+
+COMMIT WORK;    --상품정보변경
+END IF;
+    V_EXE_RSLT := '상품등록:'||V_I_CNT||' 상품수정:'||V_U_CNT;
+    V_U_CNT := 0;
+OPEN C_HLD_GOODS_LIST;
+FETCH C_HLD_GOODS_LIST
+    BULK COLLECT INTO T_GOODS_HLD;
+CLOSE C_HLD_GOODS_LIST;
+IF T_GOODS_HLD.COUNT > 0 THEN
+        FOR idx IN T_GOODS_HLD.FIRST .. T_GOODS_HLD.LAST
+            LOOP
+                R_GOODS := NULL;
+                R_GOODS.GOODS_NO := T_GOODS_HLD(idx).GOODS_NO;
+SELECT COUNT(1)
+INTO   V_CNT
+FROM   TF_GOODS_RETRV
+WHERE  GOODS_NO = R_GOODS.GOODS_NO
+;
+IF V_CNT > 0 THEN
+UPDATE TF_GOODS_RETRV
+SET  DEL_YN = 'Y'
+  , MOD_DTIME = V_SYS_DTIME
+  , EP_MOD_DTIME = V_SYS_DTIME
+WHERE  GOODS_NO = R_GOODS.GOODS_NO
+;
+V_U_CNT := V_U_CNT + 1;
+END IF;
+END LOOP;
+COMMIT WORK;    --상품정보변경
+END IF;
+    V_EXE_RSLT := V_EXE_RSLT || '상품수정(승인롤백):'||V_U_CNT;
+    V_U_CNT := 0;
+
+OPEN C_PRICE_LIST;
+FETCH C_PRICE_LIST
+    BULK COLLECT INTO T_PRICE;
+CLOSE C_PRICE_LIST;
+IF T_PRICE.COUNT > 0 THEN
+        FOR idx IN T_PRICE.FIRST .. T_PRICE.LAST
+            LOOP
+                --무료배송 기준 코드값 체크
+BEGIN
+SELECT PRD.ORD_DLVF_YN
+     ,NVL(TO_NUMBER(CD1.CD_VAL_NM), 0)
+     ,F_DLV_STD_CD
+     ,NVL(F_DLV_STD_UNIT,0)
+INTO V_GOODS_ORD_DLVF_YN
+    ,V_GOODS_ORD_DLVF_CD_VAL
+    ,V_GOODS_F_DLV_STD_CD
+    ,V_GOODS_F_DLV_STD_UNIT
+FROM TB_PD_PRD PRD
+   , TB_CM_CODE_DTL CD1
+WHERE PRD_ID = T_PRICE(idx).GOODS_NO
+  AND CD1.CD (+)= 'ORD_DLVF_CD'
+  AND PRD.ORD_DLVF_CD = CD1.CD_VAL (+);
+EXCEPTION WHEN NO_DATA_FOUND THEN
+                    NULL;
+END;
+                --무료배송 비즈니스 로직
+                IF V_GOODS_ORD_DLVF_YN = 'Y' AND V_GOODS_ORD_DLVF_CD_VAL > 0 THEN
+                    --        무료배송기준코드 (F_DLV_STD_CD) 값이 200(수량)
+                    IF V_GOODS_F_DLV_STD_CD = '200' THEN
+                        IF V_GOODS_F_DLV_STD_UNIT <= 1 THEN
+                            V_GOODS_FREE_DLV_YN := 'Y';
+                            V_GOODS_DLV_COST := 0;
+ELSE
+                            V_GOODS_FREE_DLV_YN := 'N';
+                            V_GOODS_DLV_COST := V_GOODS_ORD_DLVF_CD_VAL;
+END IF;
+                        --        무료배송기준코드 (F_DLV_STD_CD) 값이 100(금액)
+                    ELSIF V_GOODS_F_DLV_STD_CD = '100' THEN
+                        IF V_GOODS_F_DLV_STD_UNIT <= 0 THEN
+                            V_GOODS_FREE_DLV_YN := 'Y';
+                            V_GOODS_DLV_COST := 0;
+                        ELSIF V_GOODS_F_DLV_STD_UNIT <= T_PRICE(idx).SALE_PRC THEN
+                            V_GOODS_FREE_DLV_YN := 'Y';
+                            V_GOODS_DLV_COST := 0;
+ELSE
+                            V_GOODS_FREE_DLV_YN := 'N';
+                            V_GOODS_DLV_COST := V_GOODS_ORD_DLVF_CD_VAL;
+END IF;
+                        --        무료배송키준코드 (F_DLV_STD_CD) 값이 300 (무조건 유료)
+                    ELSIF V_GOODS_F_DLV_STD_CD = '300' THEN
+                        V_GOODS_FREE_DLV_YN := 'N';
+                        V_GOODS_DLV_COST := V_GOODS_ORD_DLVF_CD_VAL;
+END IF;
+ELSE
+                    V_GOODS_FREE_DLV_YN := 'Y';
+                    V_GOODS_DLV_COST := 0;
+                    --        무료배송키준코드 (F_DLV_STD_CD) 값이 400 (착불)
+                    IF V_GOODS_F_DLV_STD_CD = '400' THEN
+                        V_GOODS_COD_YN := 'Y';
+ELSE
+                        V_GOODS_COD_YN := 'N';
+END IF;
+END IF;
+                -- 단품가격 UPDATE
+UPDATE TF_GOODS_RETRV
+SET SALE_PRC = T_PRICE(idx).SALE_PRC
+  , SALE_PRC_STRT_DTIME = T_PRICE(idx).SALE_PRC_STRT_DTIME
+  , SALE_PRC_END_DTIME = T_PRICE(idx).SALE_PRC_END_DTIME
+  , ITEM_NO = T_PRICE(idx).ITEM_NO
+  , FREE_DLV_YN = V_GOODS_FREE_DLV_YN
+  , DLV_COST = V_GOODS_DLV_COST
+  , MOD_DTIME = V_SYS_DTIME
+  , EP_MOD_DTIME = V_SYS_DTIME
+  , COD_YN = V_GOODS_COD_YN
+WHERE  GOODS_NO = T_PRICE(idx).GOODS_NO
+;
+V_U_CNT := V_U_CNT + SQL%ROWCOUNT;
+END LOOP;
+COMMIT WORK;    --상품가격정보변경
+V_EXE_RSLT := V_EXE_RSLT || ' 가격변경:'||V_U_CNT;
+
+END IF;
+    V_U_CNT := 0;
+OPEN C_UNT_PRICE_GAP_CNT_LIST;
+FETCH C_UNT_PRICE_GAP_CNT_LIST
+    BULK COLLECT INTO T_UNT_PRICE_GAP_CNT;
+CLOSE C_UNT_PRICE_GAP_CNT_LIST;
+IF T_UNT_PRICE_GAP_CNT.COUNT > 0 THEN
+        FOR idx IN T_UNT_PRICE_GAP_CNT.FIRST .. T_UNT_PRICE_GAP_CNT.LAST
+            LOOP
+BEGIN        --단품 판매_가 차이 여부 검사
+SELECT NVL(
+               (CASE WHEN COUNT( DISTINCT UPC.UPRC) > 1 THEN 'Y' ELSE 'N' END)
+           ,'N'
+       )
+INTO V_GOODS_ITEM_SALE_PRC_GAP_YN
+FROM TB_PD_UNT UNT, TB_PD_UNT_PRC_CHG UPC
+WHERE 1=1
+  AND UNT.PRD_ID = T_UNT_PRICE_GAP_CNT(idx).GOODS_NO
+  AND UPC.PRD_ID = UNT.PRD_ID
+  AND UPC.UNT_ID = UNT.UNT_ID
+  AND UPC.USE_YN = 'Y'
+  AND UPC.PRC_APV_STS_CD = '310'
+  AND UNT.UNT_SL_STS_CD = '110'
+  AND UNT.USE_YN = 'Y'
+  AND SYSDATE BETWEEN UPC.PRC_BGN_DTM AND UPC.PRC_END_DTM;
+EXCEPTION WHEN NO_DATA_FOUND THEN
+                    NULL;
+END;
+                -- 단품판매가 동일 여부 UPDATE
+UPDATE TF_GOODS_RETRV_EXT
+SET ITEM_SALE_PRC_GAP_YN = V_GOODS_ITEM_SALE_PRC_GAP_YN
+WHERE  GOODS_NO = T_UNT_PRICE_GAP_CNT(idx).GOODS_NO;
+V_U_CNT := V_U_CNT + SQL%ROWCOUNT;
+END LOOP;
+COMMIT WORK;    --상품가격정보변경
+V_EXE_RSLT := V_EXE_RSLT || ' 단품판매가 동일 여부 수정:'||V_U_CNT;
+END IF;
+    --판매량, 클릭수, 상품평정보, 좋아요 UPDATE
+BEGIN
+        -- 총 누적 판매량
+UPDATE TF_GOODS_RETRV GR
+SET    SALE_QTY = (SELECT NVL(SUM(ORD_QTY), 0)
+                   FROM   TF_BATCH_GOODS_ORD MPO
+                   WHERE  MPO.GOODS_NO = GR.GOODS_NO
+                     AND    MPO.STD_DATE >= TRUNC(V_SYS_DTIME)
+                     AND    MPO.ORD_QTY > 0
+                     AND    MPO.CHNL_ID IN ('1012','1013')
+)
+  , MOD_DTIME = V_SYS_DTIME
+WHERE  GOODS_NO IN (
+    SELECT GOODS_NO
+    FROM   TF_BATCH_GOODS_ORD
+    WHERE  REG_DTIME >= V_BATCH_STRD_DTIME
+      AND    REG_DTIME < V_SYS_DTIME
+      AND    ORD_QTY > 0
+)
+;
+
+V_U_CNT := SQL%ROWCOUNT;
+COMMIT WORK;
+V_EXE_RSLT := V_EXE_RSLT || ' 일반상품 판매량변경:'||V_U_CNT;
+
+        -- 총 누적 판매량(그룹상품) : 그룹상품 = 'Y' 집계 2023.01.04 박장순 추가
+UPDATE TF_GOODS_RETRV GR
+SET    SALE_QTY = (SELECT NVL(SUM(ORD_QTY), 0)
+                   FROM   TB_PD_GP_PRD_MAPG GPM,
+                          TF_BATCH_GOODS_ORD MPO
+                   WHERE  GR.GOODS_NO = GPM.GP_PRD_ID
+                     AND    MPO.GOODS_NO = GPM.PRD_ID
+                     AND    MPO.STD_DATE >= TRUNC(V_SYS_DTIME)
+                     AND    MPO.ORD_QTY > 0
+                     AND    MPO.CHNL_ID IN ('1012','1013')
+)
+  , MOD_DTIME = V_SYS_DTIME
+WHERE  GR.GOODS_NO IN (SELECT GPM.GP_PRD_ID
+                       FROM   TF_BATCH_GOODS_ORD BGO,
+                              TB_PD_GP_PRD_MAPG  GPM
+                       WHERE  BGO.GOODS_NO = GPM.PRD_ID
+                         AND    BGO.REG_DTIME >= V_BATCH_STRD_DTIME
+                         AND    BGO.REG_DTIME < V_SYS_DTIME
+                         AND    BGO.ORD_QTY > 0
+                       GROUP  BY GPM.GP_PRD_ID
+)
+  AND   GR.GRP_GOODS_YN = 'Y'
+;
+V_U_CNT := SQL%ROWCOUNT;
+COMMIT WORK;
+V_EXE_RSLT := V_EXE_RSLT || ' 그룹상품 판매량변경:'||V_U_CNT;
+
+        -- 아임딜 90일 누적 판매량 (아임딜 기간 변경시 추후 변경 부분) -- 일반상품 TF_GOODS_RETRV.GRP_GOODS_YN = 'N'
+UPDATE TF_GOODS_RETRV GR
+SET    TERM_SALE_QTY_2 = (SELECT NVL(SUM(ORD_QTY), 0)
+                          FROM   TF_BATCH_GOODS_ORD MPO
+                          WHERE  MPO.GOODS_NO = GR.GOODS_NO
+                            AND    MPO.STD_DATE >= TRUNC(V_SYS_DTIME) - 90
+                            AND    MPO.ORD_QTY > 0
+                            AND    MPO.CHNL_ID IN ('1012','1013')
+)
+  , MOD_DTIME = V_SYS_DTIME
+WHERE GR.GRP_GOODS_YN = 'N'
+  AND   SYSDATE BETWEEN GR.DEAL_APLY_STRT_DTIME AND GR.DEAL_APLY_END_DTIME
+;
+V_U_CNT := SQL%ROWCOUNT;
+COMMIT WORK;
+V_EXE_RSLT := V_EXE_RSLT || ' 아임딜(90일)판매량변경(일반상품):'||V_U_CNT;
+
+        -- 아임딜 90일 누적 판매량 (아임딜 기간 변경시 추후 변경 부분) -- 그룹상품 TF_GOODS_RETRV.GRP_GOODS_YN = 'Y'
+UPDATE TF_GOODS_RETRV GR
+SET    TERM_SALE_QTY_2 = (SELECT NVL(SUM(ORD_QTY), 0)
+                          FROM   TF_BATCH_GOODS_ORD  MPO
+                             , TB_PD_GP_PRD_MAPG   GPM
+                          WHERE  GR.GOODS_NO  = GPM.GP_PRD_ID
+                            AND    MPO.GOODS_NO = GPM.PRD_ID
+                            AND    MPO.STD_DATE >= TRUNC(V_SYS_DTIME) - 90
+                            AND    MPO.ORD_QTY > 0
+                            AND    MPO.CHNL_ID IN ('1012','1013')
+)
+  , MOD_DTIME = V_SYS_DTIME
+WHERE GR.GRP_GOODS_YN = 'Y'
+  AND   SYSDATE BETWEEN GR.DEAL_APLY_STRT_DTIME AND GR.DEAL_APLY_END_DTIME
+;
+V_U_CNT := SQL%ROWCOUNT;
+COMMIT WORK;
+V_EXE_RSLT := V_EXE_RSLT || ' 아임딜(90일)판매량변경(그룹상품):'||V_U_CNT;
+
+        IF TO_CHAR(V_SYS_DTIME, 'HH24') = '06' THEN --오전6시에만 처리
+UPDATE TF_GOODS_RETRV GR
+SET    CLCK_CNT = 0
+  , MOD_DTIME = V_SYS_DTIME
+WHERE CLCK_CNT > 0
+;
+COMMIT WORK;
+
+MERGE INTO TF_GOODS_RETRV GR
+    USING (
+        SELECT                 GOODS_NO , NVL(SUM(CLCK_CNT), 0) as CLCK_CNT
+        FROM                        TF_DD_GOODS_WEB_LOG
+        WHERE                LOG_DATE >= TRUNC(V_SYS_DTIME) - 7
+          AND                    CLCK_CNT > 0
+        GROUP BY         GOODS_NO
+    ) C
+    ON (GR.GOODS_NO = C.GOODS_NO)
+    WHEN MATCHED THEN
+        UPDATE SET GR.CLCK_CNT = C.CLCK_CNT
+;
+COMMIT WORK;
+SELECT                 COUNT(1)
+INTO      V_U_CNT
+FROM                        TF_GOODS_RETRV
+WHERE  GOODS_NO IN (
+    SELECT         GOODS_NO
+    FROM                TF_DD_GOODS_WEB_LOG
+    WHERE                LOG_DATE >= TRUNC(V_SYS_DTIME) - 7
+      AND            CLCK_CNT > 0
+    GROUP BY GOODS_NO
+)
+;
+V_EXE_RSLT := V_EXE_RSLT || ' 클릭수변경:'||V_U_CNT;
+END IF;
+UPDATE TF_GOODS_RETRV GR
+SET    (GOODS_ASSMT_CNT, AVG_STFD_VAL) = (SELECT NVL(SUM(DECODE(DEL_YN, 'N', DECODE(DISP_YN, 'Y', 1, 0), 0)), 0)
+                                               , DECODE(NVL(SUM(DECODE(DEL_YN, 'N', DECODE(DISP_YN, 'Y', 1, 0), 0)), 0), 0, 0, ROUND( NVL(SUM(DECODE(DEL_YN, 'N', DECODE(DISP_YN, 'Y', AVG_STFD_VAL, 0), 0)), 0) /NVL(SUM(DECODE(DEL_YN, 'N', DECODE(DISP_YN, 'Y', 1, 0), 0)), 0)) )
+                                          FROM   TF_GOODS_ASSMT GA
+                                          WHERE  GA.GOODS_NO = GR.GOODS_NO)
+  , MOD_DTIME = V_SYS_DTIME
+WHERE  GOODS_NO IN (
+    SELECT GOODS_NO
+    FROM   TF_GOODS_ASSMT
+    WHERE  MOD_DTIME >= V_BATCH_STRD_DTIME
+      AND    MOD_DTIME < V_SYS_DTIME
+)
+;
+V_U_CNT := SQL%ROWCOUNT;
+COMMIT WORK;
+V_EXE_RSLT := V_EXE_RSLT || ' 상품평변경:'||V_U_CNT;
+
+        -- 상품평 횟수, 평균만족도값 90일 --
+UPDATE TF_GOODS_RETRV GR
+SET    (GOODS_ASSMT_CNT_90, AVG_STFD_VAL_90) = (SELECT NVL(SUM(DECODE(DEL_YN, 'N', DECODE(DISP_YN, 'Y', 1, 0), 0)), 0)
+                                                     , DECODE(NVL(SUM(DECODE(DEL_YN, 'N', DECODE(DISP_YN, 'Y', 1, 0), 0)), 0), 0, 0, ROUND( NVL(SUM(DECODE(DEL_YN, 'N', DECODE(DISP_YN, 'Y', AVG_STFD_VAL, 0), 0)), 0) /NVL(SUM(DECODE(DEL_YN, 'N', DECODE(DISP_YN, 'Y', 1, 0), 0)), 0)) )
+                                                FROM   TF_GOODS_ASSMT GA
+                                                WHERE  GA.GOODS_NO = GR.GOODS_NO)
+  , MOD_DTIME = V_SYS_DTIME
+WHERE  GOODS_NO IN (
+    SELECT GOODS_NO
+    FROM   TF_GOODS_ASSMT
+    WHERE  MOD_DTIME >= TRUNC(V_SYS_DTIME) - 90
+)
+;
+V_U_CNT := SQL%ROWCOUNT;
+COMMIT WORK;
+V_EXE_RSLT := V_EXE_RSLT || ' 상품평변경 90일:'||V_U_CNT;
+
+        -- 좋아요 횟수(전체) UPDATE
+UPDATE TF_GOODS_RETRV GW
+SET    WISHLST_CNT = (SELECT COUNT(*)
+                      FROM   TF_WISHLST GA
+                      WHERE  GA.GOODS_NO = GW.GOODS_NO
+                        AND    USE_YN      = 'Y')
+  , MOD_DTIME = V_SYS_DTIME
+WHERE  GOODS_NO IN (
+    SELECT GOODS_NO
+    FROM   TF_WISHLST
+    WHERE  MOD_DTIME >= V_BATCH_STRD_DTIME
+      AND    MOD_DTIME < V_SYS_DTIME
+)
+;
+V_U_CNT := SQL%ROWCOUNT;
+COMMIT WORK;
+V_EXE_RSLT := V_EXE_RSLT || ' 좋아요 횟수변경:'||V_U_CNT;
+
+        -- 좋아요 횟수(90일) UPDATE
+UPDATE TF_GOODS_RETRV GW
+SET    WISHLST_CNT_90 = (SELECT COUNT(*)
+                         FROM   TF_WISHLST GA
+                         WHERE  GA.GOODS_NO = GW.GOODS_NO
+                           AND    USE_YN      = 'Y')
+  , MOD_DTIME = V_SYS_DTIME
+WHERE  GOODS_NO IN (
+    SELECT GOODS_NO
+    FROM   TF_WISHLST
+    WHERE  MOD_DTIME >= TRUNC(V_SYS_DTIME) - 90
+)
+;
+V_U_CNT := SQL%ROWCOUNT;
+COMMIT WORK;
+V_EXE_RSLT := V_EXE_RSLT || ' 좋아요 횟수(90일)변경:'||V_U_CNT;
+END;
+
+    --상품이미지
+BEGIN
+UPDATE TF_GOODS_RETRV GR
+SET    (GOODS_IMG_ID, IMG_URL, EC_GOODS_YN) = (
+    SELECT PI.PRD_IMG_ID
+         , CASE
+               WHEN PI.PRD_IMG_FILE_NM IS NOT NULL THEN '/' || SUBSTR(PI.PRD_ID, 7) || '/' || SUBSTR(PI.PRD_ID, 5, 2) || '/' || SUBSTR(PI.PRD_ID, 3, 2) || '/' || PI.PRD_IMG_FILE_NM || '_200x200.' || NVL(PI.PRD_IMG_FILE_EXTNS, 'jpg')
+               ELSE ''
+        END
+         , 'Y'
+    FROM   TB_PD_PRD_IMG PI
+    WHERE  PI.PRD_ID = GR.GOODS_NO
+      AND    PI.DLG_YN = 'Y'
+      AND    PI.USE_YN = 'Y'
+      AND    PI.PRD_IMG_FILE_NM IS NOT NULL
+      AND    ROWNUM = 1
+)
+  , MOD_DTIME = V_SYS_DTIME
+WHERE  GOODS_NO IN (
+    SELECT PI.PRD_ID
+    FROM   TB_PD_PRD_IMG PI
+    WHERE  PI.MDF_DTM >= V_BATCH_STRD_DTIME
+      AND    PI.MDF_DTM < V_SYS_DTIME
+      AND    PI.DLG_YN = 'Y'
+      AND    PI.USE_YN = 'Y'
+      AND    PI.PRD_IMG_FILE_NM IS NOT NULL
+      AND    EXISTS (
+        SELECT 1
+        FROM   TF_GOODS_RETRV
+        WHERE  GOODS_NO = PI.PRD_ID
+          AND    NVL(GOODS_IMG_ID, 0) != PI.PRD_IMG_ID
+    )
+)
+;
+V_U_CNT := SQL%ROWCOUNT;
+COMMIT WORK;
+V_EXE_RSLT := V_EXE_RSLT || ' 이미지변경:'||V_U_CNT;
+
+END;
+    --접두어/접미어
+BEGIN
+        --시작된거 중에 시작일시가 최근인거, 수정일시가 최근인거
+UPDATE TF_GOODS_RETRV GR
+SET   (PFX_NM
+    , PFX_COLOR_CD
+    , PFX_FONT_BOLD_YN
+    , SFX_CD
+    , PFX_SFX_STRT_DTIME
+    , PFX_SFX_END_DTIME) = (
+        SELECT /*+INDEX_DESC(GPS PK_GOODS_PFX_SFX)*/
+            PFX_NM
+             , PFX_COLOR_CD
+             , PFX_FONT_BOLD_YN
+             , SFX_CD
+             , DISP_STRT_DTIME
+             , DISP_END_DTIME
+        FROM   TF_GOODS_PFX_SFX GPS
+        WHERE  GOODS_NO = GR.GOODS_NO
+          AND    DISP_STRT_DTIME < V_SYS_DTIME
+          AND    ROWNUM = 1
+    )
+  , MOD_DTIME = V_SYS_DTIME
+WHERE GOODS_NO IN (
+    SELECT GOODS_NO
+    FROM   TF_GOODS_PFX_SFX
+    WHERE  ((DISP_STRT_DTIME >= V_BATCH_STRD_DTIME   --시작되었거나
+        AND DISP_STRT_DTIME < V_SYS_DTIME
+                ) OR (
+                MOD_DTIME >= V_BATCH_STRD_DTIME             --수정된것
+                    AND MOD_DTIME < V_SYS_DTIME
+                    AND DISP_STRT_DTIME < V_SYS_DTIME           --시작된것중에
+                ))
+      AND     DISP_END_DTIME > V_SYS_DTIME
+)
+;
+V_U_CNT := SQL%ROWCOUNT;
+COMMIT WORK;    --접두어/접미어변경
+V_EXE_RSLT := V_EXE_RSLT || ' 접두어/접미어변경:'||V_U_CNT;
+
+END;
+    --판매매체 변경 적용=> EC 판매변경시 DEL_YN 변경
+BEGIN
+UPDATE TF_GOODS_RETRV GR
+SET    DEL_YN = CASE WHEN (
+                              SELECT NVL(MAX(DECODE(MDA_CD, '110', 'N')), 'Y')
+                              FROM   TB_PD_PRD_SL_IMPSS_CHNL
+                              WHERE  PRD_ID = GR.GOODS_NO
+                                AND    USE_YN = 'Y'
+                          ) = 'N' THEN 'Y'
+                     ELSE 'N' END
+  , MOD_DTIME = V_SYS_DTIME
+  , EP_MOD_DTIME = V_SYS_DTIME
+WHERE  GOODS_NO IN (
+    SELECT PRD_ID
+    FROM   TB_PD_PRD_SL_IMPSS_CHNL
+    WHERE  MDF_DTM >= V_BATCH_STRD_DTIME
+      AND    MDF_DTM < V_SYS_DTIME
+      AND    MDA_CD = '110'   /*인터넷*/
+)
+  AND    GR.SALE_STAT_CD != '130'
+;
+V_U_CNT := SQL%ROWCOUNT;
+COMMIT WORK;    --판매매체 변경
+V_EXE_RSLT := V_EXE_RSLT || ' 판매매체변경:'||V_U_CNT;
+
+END;
+BEGIN
+        V_U_CNT := 0;
+        --상품기술서
+FOR IDX IN (
+            SELECT DISTINCT MNL.PRD_ID
+            FROM   TB_PD_PRD_MNL MNL
+            WHERE  MNL.MDF_DTM >= V_BATCH_STRD_DTIME
+              AND    MNL.MDF_DTM < V_SYS_DTIME
+              AND    MNL.USE_YN = 'Y'
+              AND    MNL.WEB_EXPO_YN = 'Y'
+              AND    MNL.CST_EXPO_YN = 'Y'
+              AND    MNL.MNL_SRCH_TYP_CD != '130'
+            ) LOOP
+                V_GOODS_MNL_CONT := F_GET_GOODS_MNL_CONT(IDX.PRD_ID);
+UPDATE TF_GOODS_RETRV GR
+SET    GOODS_MNL_CONT = V_GOODS_MNL_CONT
+  , MOD_DTIME = V_SYS_DTIME
+WHERE  GOODS_NO = IDX.PRD_ID
+;
+V_U_CNT := V_U_CNT + SQL%ROWCOUNT;
+END LOOP;
+COMMIT WORK;
+V_EXE_RSLT := V_EXE_RSLT || ' 기술서변경:'||V_U_CNT;
+END;
+    --프로모션 가격할인 적용
+BEGIN
+        --중단, 긴급중단 프로모션의 업데이트
+UPDATE TF_GOODS_RETRV
+SET    PR_ID = NULL
+  , PR_NM = NULL
+  , PR_STRT_DTIME = NULL
+  , PR_END_DTIME = NULL
+  , PR_RTAMT_TP_CD = NULL
+  , PR_DC_RTAMT = 0
+  , PMT_PRC_DSN_YN = 'N'
+  , MOD_DTIME = V_SYS_DTIME
+  , EP_MOD_DTIME = V_SYS_DTIME
+WHERE  PR_ID IN (
+    SELECT PMT_ID
+    FROM   TB_PD_PMT PMT
+    WHERE  PMT.USE_YN = 'Y'
+      AND    PMT.PMT_STS_CD IN ('120', '130') /*중단, 긴급중단*/
+      AND    PMT.PMT_APV_STS_CD = '210' /*승인*/
+      AND    PMT.PMT_PATTN_CD = '100' /*가격할인_상품*/
+      AND    PMT.MDF_DTM >= V_BATCH_STRD_DTIME
+      AND    PMT.MDF_DTM < V_SYS_DTIME
+      AND    PMT.TRT_PRD_LMT_YN = 'Y'                 --상품 대상 프로모션중에
+      --AND    V_SYS_DTIME BETWEEN PMT.PMT_BGN_DTM AND PMT.PMT_END_DTM  --진행중 프로모션
+      AND    V_SYS_DTIME BETWEEN TO_DATE(TO_CHAR(PMT.PMT_BGN_DTM,'YYYY/MM/DD') || PMT.APPLY_BGN_HH_MI || '00','YYYY/MM/DD HH24:MI:SS') AND TO_DATE(TO_CHAR(PMT.PMT_END_DTM,'YYYY/MM/DD') || PMT.APPLY_END_HH_MI || '00','YYYY/MM/DD HH24:MI:SS') --진행중 프로모션
+)
+;
+V_U_CNT := SQL%ROWCOUNT;
+COMMIT WORK;    --가격할인 프로모션 중단
+V_EXE_RSLT := V_EXE_RSLT || ' 가격할인중단:'||V_U_CNT;
+
+OPEN C_PMT_LIST;
+FETCH C_PMT_LIST
+    BULK COLLECT INTO T_PMT;
+CLOSE C_PMT_LIST;
+V_U_CNT := 0;
+        IF T_PMT.COUNT > 0 THEN
+            FOR idx IN T_PMT.FIRST .. T_PMT.LAST
+                LOOP
+UPDATE TF_GOODS_RETRV GR
+SET    PR_ID = T_PMT(idx).PR_ID
+  , PR_NM = T_PMT(idx).PR_NM
+  , PR_STRT_DTIME = T_PMT(idx).PR_STRT_DTIME
+  , PR_END_DTIME = T_PMT(idx).PR_END_DTIME
+  , PR_RTAMT_TP_CD = T_PMT(idx).PR_RTAMT_TP_CD
+  , PR_DC_RTAMT = T_PMT(idx).PR_DC_RTAMT
+  , PR_MAX_AMT_LMT_YN = T_PMT(idx).PR_MAX_AMT_LMT_YN
+  , PR_APLY_MAX_AMT = T_PMT(idx).PR_APLY_MAX_AMT
+  , MOD_DTIME = V_SYS_DTIME
+  , EP_MOD_DTIME = V_SYS_DTIME
+WHERE  GOODS_NO = T_PMT(idx).GOODS_NO
+  AND    SALE_PRC > 0
+  AND    (T_PMT(idx).PR_RTAMT_TP_CD = '100'
+    OR (
+              T_PMT(idx).PR_RTAMT_TP_CD = '200' AND T_PMT(idx).PR_DC_RTAMT <= SALE_PRC    /*프로모션은 쿠폰을 생각하지 않고 처리*/
+              ))
+  AND    ((PR_ID IS NULL OR PR_END_DTIME < V_SYS_DTIME)
+    OR DECODE(PR_RTAMT_TP_CD, '100', SALE_PRC * PR_DC_RTAMT / 100, SALE_PRC + PR_DC_RTAMT)
+              < DECODE(T_PMT(idx).PR_RTAMT_TP_CD, '100', SALE_PRC * T_PMT(idx).PR_DC_RTAMT / 100, SALE_PRC + T_PMT(idx).PR_DC_RTAMT)
+    )
+;
+V_U_CNT := V_U_CNT + SQL%ROWCOUNT;
+END LOOP;
+COMMIT WORK;    --가격할인 프로모션
+V_EXE_RSLT := V_EXE_RSLT || ' 가격할인변경:'||V_U_CNT;
+END IF;
+END;
+
+    -- 프로모션 혜택상품 유형 적용 2023.01.04 박장순 추가
+--    BEGIN
+--        OPEN C_PATTN_LIST;
+--        FETCH C_PATTN_LIST
+--        BULK COLLECT INTO T_PATTN;
+--        CLOSE C_PATTN_LIST;
+--        V_U_CNT := 0;
+--
+--        IF T_PATTN.COUNT > 0 THEN
+--            FOR idx IN T_PATTN.FIRST .. T_PATTN.LAST
+--            LOOP
+--                IF T_PATTN(idx).PMT_PATTN_CD IN ('100','110','180','210','220','230') THEN
+--                    UPDATE TF_GOODS_RETRV GR
+--                    SET    PMT_PRC_DSN_YN = 'Y'
+--                        ,  MOD_DTIME  = V_SYS_DTIME
+--                        ,  EP_MOD_DTIME = V_SYS_DTIME
+--                    WHERE  GOODS_NO = T_PATTN(idx).GOODS_NO
+--                    AND    PMT_PRC_DSN_YN = 'N'
+--                    ;
+--                END IF;
+--
+--                IF T_PATTN(idx).PMT_PATTN_CD IN ('120','130','240','250') THEN
+--                    UPDATE TF_GOODS_RETRV GR
+--                    SET    PMT_PNM_YN = 'Y'
+--                        ,  MOD_DTIME  = V_SYS_DTIME
+--                        ,  EP_MOD_DTIME = V_SYS_DTIME
+--                    WHERE  GOODS_NO = T_PATTN(idx).GOODS_NO
+--                    AND    PMT_PNM_YN = 'N'
+--                    ;
+--                END IF;
+--
+--                IF T_PATTN(idx).PMT_PATTN_CD IN ('140','150','160') THEN
+--                    UPDATE TF_GOODS_RETRV GR
+--                    SET    PMT_GFT_YN = 'Y'
+--                        ,  MOD_DTIME  = V_SYS_DTIME
+--                        ,  EP_MOD_DTIME = V_SYS_DTIME
+--                    WHERE  GOODS_NO = T_PATTN(idx).GOODS_NO
+--                    AND    PMT_GFT_YN = 'N'
+--                    ;
+--                END IF;
+--
+--                V_U_CNT := V_U_CNT + SQL%ROWCOUNT;
+--            END LOOP;
+--            COMMIT WORK;    --가격할인 프로모션
+--            V_EXE_RSLT := V_EXE_RSLT || ' 프로모션 혜택유형 변경:'||V_U_CNT;
+--        END IF;
+--    END;
+
+    --쿠폰다운로드 적용
+BEGIN
+        --중단 쿠폰의 업데이트
+UPDATE TF_GOODS_RETRV
+SET    CPN_ID = NULL
+  , CPN_NM = NULL
+  , CPN_STRT_DTIME = NULL
+  , CPN_END_DTIME = NULL
+  , CPN_RTAMT_TP_CD = NULL
+  , CPN_DC_RTAMT = 0
+  , MOD_DTIME = V_SYS_DTIME
+  , EP_MOD_DTIME = V_SYS_DTIME
+WHERE  CPN_ID IN (
+    SELECT CPN_ID
+    FROM   TB_PD_CPN CPN
+    WHERE  CPN.USE_YN = 'Y'
+      AND    CPN.CPN_STS_CD = '120' /*중단*/
+      AND    CPN.CPN_APV_STS_CD = '210' /*승인*/
+      AND    CPN.CPN_PATTN_CD = '100' /*가격할인_상품*/
+      AND    CPN.MDF_DTM >= V_BATCH_STRD_DTIME
+      AND    CPN.MDF_DTM < V_SYS_DTIME
+      AND    CPN.TRT_PRD_PRT_LMT_YN = 'Y'                 --상품 대상 쿠폰중에
+      AND    V_SYS_DTIME BETWEEN CPN.PRT_BGN_DTM AND CPN.PRT_END_DTM /*발행기간*/
+)
+;
+V_U_CNT := SQL%ROWCOUNT;
+COMMIT WORK;    --쿠폰다운로드 중단
+V_EXE_RSLT := V_EXE_RSLT || ' 쿠폰중단:'||V_U_CNT;
+OPEN C_CPN_LIST;
+FETCH C_CPN_LIST
+    BULK COLLECT INTO T_CPN;
+CLOSE C_CPN_LIST;
+V_U_CNT := 0;
+        IF T_CPN.COUNT > 0 THEN
+            FOR idx IN T_CPN.FIRST .. T_CPN.LAST
+                LOOP
+UPDATE TF_GOODS_RETRV GR
+SET    CPN_ID = T_CPN(idx).CPN_ID
+  , CPN_NM = T_CPN(idx).CPN_NM
+  , CPN_STRT_DTIME = T_CPN(idx).CPN_STRT_DTIME
+  , CPN_END_DTIME = T_CPN(idx).CPN_END_DTIME
+  , CPN_RTAMT_TP_CD = T_CPN(idx).CPN_RTAMT_TP_CD
+  , CPN_DC_RTAMT = T_CPN(idx).CPN_DC_RTAMT
+  , MOD_DTIME = V_SYS_DTIME
+  , EP_MOD_DTIME = V_SYS_DTIME
+WHERE  GOODS_NO = T_CPN(idx).GOODS_NO
+  AND    SALE_PRC > 0
+  AND    (T_CPN(idx).CPN_RTAMT_TP_CD = '100'
+    OR (
+              T_CPN(idx).CPN_RTAMT_TP_CD = '200' AND T_CPN(idx).CPN_DC_RTAMT +
+                                                     CASE WHEN PR_ID IS NOT NULL
+                                                         AND V_SYS_DTIME BETWEEN PR_STRT_DTIME AND PR_END_DTIME
+                                                              THEN
+                                                              CASE
+                                                                  WHEN PR_MAX_AMT_LMT_YN = 'Y'
+                                                                      THEN DECODE( SIGN(PR_APLY_MAX_AMT - DECODE(PR_RTAMT_TP_CD, '100', ROUND(SALE_PRC * PR_DC_RTAMT / 100), PR_DC_RTAMT)), -1, PR_APLY_MAX_AMT, DECODE(PR_RTAMT_TP_CD, '100', ROUND(SALE_PRC * PR_DC_RTAMT / 100), PR_DC_RTAMT) )
+                                                                  ELSE DECODE(PR_RTAMT_TP_CD, '100', ROUND(SALE_PRC * PR_DC_RTAMT / 100), PR_DC_RTAMT)
+                                                                  END
+                                                          ELSE 0 END <= SALE_PRC
+              ))
+  AND   ((CPN_ID IS NULL OR CPN_END_DTIME < V_SYS_DTIME)
+    OR DECODE(CPN_RTAMT_TP_CD, '100', SALE_PRC * CPN_DC_RTAMT / 100, SALE_PRC + CPN_DC_RTAMT)
+             < DECODE(T_CPN(idx).CPN_RTAMT_TP_CD, '100', SALE_PRC * T_CPN(idx).CPN_DC_RTAMT / 100, SALE_PRC + T_CPN(idx).CPN_DC_RTAMT)
+    )
+;
+V_U_CNT := V_U_CNT + SQL%ROWCOUNT;
+END LOOP;
+COMMIT WORK;    --쿠폰다운로드
+V_EXE_RSLT := V_EXE_RSLT || ' 쿠폰변경:'||V_U_CNT;
+END IF;
+END;
+
+    --ARS 할인내역 적용
+BEGIN
+OPEN C_ARS_LIST;
+FETCH C_ARS_LIST
+    BULK COLLECT INTO T_ARS;
+CLOSE C_ARS_LIST;
+V_U_CNT := 0;
+        IF T_ARS.COUNT > 0 THEN
+            FOR idx IN T_ARS.FIRST .. T_ARS.LAST
+                LOOP
+UPDATE TF_GOODS_RETRV GR
+SET    ARS_DC_AMT_STRT_DTIME = T_ARS(idx).ARS_DC_AMT_STRT_DTIME
+  , ARS_DC_AMT_END_DATE = T_ARS(idx).ARS_DC_AMT_END_DATE
+  , ARS_DC_SELFCO_BD_AMT = T_ARS(idx).ARS_DC_SELFCO_BD_AMT
+  , ARS_DC_SUPP_BD_AMT = T_ARS(idx).ARS_DC_SUPP_BD_AMT
+  , MOD_DTIME = V_SYS_DTIME
+  , EP_MOD_DTIME = V_SYS_DTIME
+WHERE  GOODS_NO = T_ARS(idx).GOODS_NO
+  AND  (
+    ARS_DC_AMT_STRT_DTIME != T_ARS(idx).ARS_DC_AMT_STRT_DTIME
+                            OR
+                                ARS_DC_AMT_END_DATE != T_ARS(idx).ARS_DC_AMT_END_DATE
+                            OR
+                                ARS_DC_SELFCO_BD_AMT != T_ARS(idx).ARS_DC_SELFCO_BD_AMT
+                            OR
+                                ARS_DC_SUPP_BD_AMT != T_ARS(idx).ARS_DC_SUPP_BD_AMT
+    )
+;
+V_U_CNT := V_U_CNT + SQL%ROWCOUNT;
+END LOOP;
+COMMIT WORK;    --ARS 할인내역
+V_EXE_RSLT := V_EXE_RSLT || ' ARS할인내역변경:'||V_U_CNT;
+END IF;
+END;
+
+    --상품 동영상 등록 여부
+BEGIN
+        V_U_CNT := 0;
+FOR IDX IN (
+            SELECT DISTINCT PRD_ID
+            FROM TB_PD_PRD_MOV
+            WHERE MDF_DTM >= V_BATCH_STRD_DTIME
+              AND MDF_DTM < V_SYS_DTIME
+            ) LOOP
+UPDATE TF_GOODS_RETRV_EXT GRE
+SET    GRE.GOODS_VIDEO_REG_YN = (
+    SELECT USE_YN
+    FROM TB_PD_PRD_MOV A
+    WHERE A.PRD_MOV_ID = ( SELECT MAX(PRD_MOV_ID) KEEP(DENSE_RANK FIRST ORDER BY PRD_MOV_ID DESC) AS MID FROM TB_PD_PRD_MOV WHERE PRD_ID = IDX.PRD_ID)
+)
+WHERE GOODS_NO = IDX.PRD_ID
+;
+V_U_CNT := V_U_CNT + SQL%ROWCOUNT;
+END LOOP;
+COMMIT WORK;
+V_EXE_RSLT := V_EXE_RSLT || ' 상품동영상여부변경:'||V_U_CNT;
+END;
+    V_EXE_RSLT_CD := 1;
+    V_EXE_RSLT := '성공' || ' ' || V_EXE_RSLT;
+    P_UPDATE_BATCH_EXE_HIS();
+EXCEPTION WHEN OTHERS THEN
+    ROLLBACK WORK;
+    DBMS_OUTPUT.PUT_LINE ('err=' || SQLERRM);
+    --BATCH LOG 등록
+    V_EXE_RSLT_CD := 9;
+    V_EXE_RSLT := SQLERRM || ' ' || V_EXE_RSLT;
+    P_UPDATE_BATCH_EXE_HIS();
+END SP_GOODS_RETRV;
