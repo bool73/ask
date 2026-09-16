@@ -1,3 +1,4 @@
+/*A*/
 @RequestMapping(value = {"/gyLivePlayerDetail.do","gyLivePlayerDetailEvent.do","gyLivePlayerNewEvent.do"})
 	public String gyLivePlayerDetail(HttpServletRequest request
 			, HttpServletResponse response
@@ -30,7 +31,7 @@
 		return "none/mlc/gyLivePlayerNetFunnel";
 
 	}
-	
+	/*B*/
 	@RequestMapping(value = {"/mlcGyLivePlayerDetail.do"})
 	public String mlcGyLivePlayerDetail(HttpServletRequest request
 			, HttpServletResponse response
@@ -57,11 +58,13 @@
 		if( !"".equals(redirectUrl)){
 			return "redirect:" + redirectUrl;
 		}
+
+		생략
 	}
 
 
 /**
-     * @author jominhye
+     * @author
 	 * @desc Slog 관련 params 세팅
 	 * @param brcInfoNo			방송번호
 	 * @return String 			params(slog, title)
@@ -88,7 +91,7 @@
 	}
 	
 	/**
-     * @author jominhye
+     * @author
 	 * @desc Slog 관련 세팅 및 redirect 
 	 * 		1. url에 slog 없는 경우 slog 세팅 후 redirect (ex 공유하기 or 직접이동)
 	 * 		2. url에 slog 있는 경우 값이 변조되어있는지 체크 후 변조시 올바른 slog 값 세팅 후 redirect (ex url live 값을 vod로 변조 등)
@@ -135,29 +138,21 @@
 							live_vod_title = "라방 라이브";
 						}
 						
-						Map<String, String[]> paramMap = request.getParameterMap();
-						String newParams = "";
-						boolean first = true;
-						for (String key : paramMap.keySet()) {
-							String[] values = paramMap.get(key);
-							String value = (values != null && values.length > 0) ? values[0] : "";
-							
-							if ("slog".equals(key)) {
-								value = "mlc_player_detail_"+live_vod +"_"+brcInfoNo; 
-							}
-							
-							if ("title".equals(key)) {
-								value = URLEncoder.encode(live_vod_title, "UTF-8").replace("+", "%20");
-							}
-													
-							if (!first) {
-								newParams += "&";
-							}
-							newParams += key + "=" + value;
-							first = false;
-						}					
-						
-						redirectUrl = "/mlc/mlcGyLivePlayerDetail.do?"+ newParams;
+						UriComponentsBuilder builder = UriComponentsBuilder.fromPath("/mlc/mlcGyLivePlayerDetail.do");
+
+                        request.getParameterMap().forEach((key, values) -> {
+                            String value = (values != null && values.length > 0) ? values[0] : "";
+
+                            if ("slog".equals(key)) {
+                                builder.queryParam("slog", "mlc_player_detail_" + live_vod + "_" + brcInfoNo);
+                            } else if ("title".equals(key)) {
+                                builder.queryParam("title", live_vod_title);
+                            } else {
+                                builder.queryParam(key, value); // 이상한 값이 들어와도 스프링이 완벽하게 안전한 형태로 인코딩함
+                            }
+                        });
+
+                        redirectUrl = builder.build().encode().toUriString();
 					}
 				}
 			}
@@ -165,4 +160,63 @@
 			logger.error("MlcController.checkSlogRedirect : ",ex);
 		}
 		return redirectUrl;
-	}	
+	}
+
+	private String checkSlogRedirect(String brcInfoNo, HttpServletRequest request){
+        String redirectUrl = "";
+        try{
+
+           String slog = request.getParameter("slog");
+           if(StringUtils.isBlank(slog)){
+              // slog 없음 => 세팅 (공유하기 or 직접 접속한 경우)
+              String slogParams = setSlogParams(brcInfoNo);
+              if( !"".equals(slogParams)){
+                 // 참고: 여기서 request.getQueryString()이 null일 가능성(POST 호출 등)을 대비해 방어 로직 한 줄만 추가하면 더 완벽합니다.
+                 String query = request.getQueryString() == null ? "" : request.getQueryString();
+                 redirectUrl = "/mlc/mlcGyLivePlayerDetail.do?"+ query + slogParams;
+              }
+           }else{
+
+              // url 변조 검사(live or vod 상태가 동일한지 체크)
+              Boolean chkSlog = false;
+              MlcVO mlcVO = new MlcVO();
+              mlcVO.setBrcInfoNo(brcInfoNo);
+              MlcVO resultMlcVO = mlcService.selectMlcBrcInfo(mlcVO);
+              if( null != resultMlcVO ){ // 잘못된 방송번호일 경우 뒷 단에서 처리 됨(기존로직 탐)
+
+                 if(slog.indexOf("mlc_player_detail_live") != -1 ){
+                    if( "10".equals(resultMlcVO.getBrcStatCd())) chkSlog = true;   // 라이브
+                 }else if(slog.indexOf("mlc_player_detail_vod") != -1 ){
+                    if( !"10".equals(resultMlcVO.getBrcStatCd())) chkSlog = true; // vod
+                 }
+
+                 // 파람과 방송상태 값 다름. 올바른 값으로 재설정 및 redirect
+                 if( !chkSlog ){
+                    // ✅ 람다식 에러를 피하기 위해 삼항 연산자로 한 번에 값 할당
+                    boolean isLive = "10".equals(resultMlcVO.getBrcStatCd());
+                    String live_vod = isLive ? "live" : "vod";
+                    String live_vod_title = isLive ? "라방 라이브" : "라방 VOD";
+
+                    UriComponentsBuilder builder = UriComponentsBuilder.fromPath("/mlc/mlcGyLivePlayerDetail.do");
+
+                    request.getParameterMap().forEach((key, values) -> {
+                        String value = (values != null && values.length > 0) ? values[0] : "";
+
+                        if ("slog".equals(key)) {
+                            builder.queryParam("slog", "mlc_player_detail_" + live_vod + "_" + brcInfoNo);
+                        } else if ("title".equals(key)) {
+                            builder.queryParam("title", live_vod_title);
+                        } else {
+                            builder.queryParam(key, value); // 이상한 값이 들어와도 스프링이 완벽하게 안전한 형태로 인코딩함
+                        }
+                    });
+
+                    redirectUrl = builder.build().encode().toUriString();
+                 }
+              }
+           }
+        }catch (Exception ex ){
+           logger.error("MlcController.checkSlogRedirect : ",ex);
+        }
+        return redirectUrl;
+    }
