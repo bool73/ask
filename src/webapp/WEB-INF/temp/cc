@@ -1,0 +1,1221 @@
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core"%>
+<%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
+<%@ taglib prefix="form" uri="http://www.springframework.org/tags/form"%>
+<%@ taglib prefix="ui" uri="http://egovframework.gov/ctl/ui"%>
+<%@ taglib prefix="fn" uri="http://java.sun.com/jsp/jstl/functions" %>
+<%@ page trimDirectiveWhitespaces="true" %>
+<%
+	/**
+	* @Description : 공영라방 <tv쇼핑 공영라방 편성표 >
+	* @Modification Information
+	*
+	*   수정일      수정자                수정내용
+	*  -------     -----------    ---------------------------
+	*  2024.01.17  문성민		  	   #53597 [MLC] 방송정보 대표이미지, 예고이미지 수정 시 전시화면 반영 개선 요청
+	*
+	*
+	*/
+%>
+
+<!-- ###############################################################################
+##### 별도 css, script 적용 영역
+################################################################################ -->
+<link rel="stylesheet" href="/css/gy_page_tvshopping.css?ver=${view.scriptVersion }">
+
+<script src="/com/lib/swiper/swiper-bundle.min.js?ver=${view.scriptVersion }"></script>
+<!-- <script type="text/javascript" charset="utf-8" src="/com/lib/util/history.cache.js"></script> -->
+<script defer src="/js/gy_page_tvschedule.js?ver=${view.scriptVersion }"></script>
+<script type="text/javascript" src="/com/lib/util/history.cache.js?ver=${view.scriptVersion }"></script>
+
+
+<style>
+    .dv-schedule-empty { height: auto; }
+</style>
+
+
+<!-- ###################################################
+#### 편성표 영역
+#################################################### -->
+
+<div class="p-tvschedule">
+    <div class="ts-schedule-top">
+        <div class="ts-schedule">
+        
+            <!-- ###################### 탭 영역 -->
+            <div class="btn-wrapper">
+                <nav>
+                    <ul class="nav tab-round-rect   dv-ts-main-tabs" id="tsMainTabs" data-role="tablist">
+                        <li gbn="TV" onclick="scheduleMainMgr.searchBrcTypeScheduleProc('TV')">
+                            <a href="javascript:void(0);" class="tab-round-rect-link tv active" data-tab-class="ts-tv" data-role="tablink">TV쇼핑</a>
+                        </li>
+                        <li gbn="MLC" onclick="scheduleMainMgr.searchBrcTypeScheduleProc('MLC')">
+                            <a href="javascript:void(0);" class="tab-round-rect-link live" data-tab-class="ts-gylive" data-role="tablink">공영라방</a>
+                        </li>
+                    </ul>
+                </nav>
+                <button type="button" class="btn btn-s btn-line-gray -openScheduleSearch" role="button" tabindex="0" onclick="scheduleMainMgr.openScheduleSearch();"><i class="ico-18 i-search">검색</i></button>
+            </div>
+
+            <!-- ###################### 날짜 영역 
+            ##### notice: 오늘 날짜 기준으로 7일 가운데에 노출 (전체 15일)-->
+            <nav class="ts-datenav">
+                <div class="swiper-container swiper-datenav swiper-no-swiping" id="swiperDateNav">
+                    <div class="swiper-wrapper">
+                        <c:forEach var= "day" items="${dateMapList}" varStatus="status">
+                            <div class="swiper-slide">
+                                <a href="javascript:void(0);" class="datenav-link"
+                                    data-date="<c:out value="${day.date}"/>" 
+                                    data-idx="<c:out value="${status.index}"/>" 
+                                    id="<c:out value="tvschedule_${day.isToday ? 'today' : day.dateNum}"/>"
+                                    onclick="scheduleMainMgr.searchDateScheduleProc($(this).data('date')); fnTvSchedule_DsLog('_${day.isToday ? 'today' : day.dateNum}', '_${day.date}');">
+                                    
+                                    <strong><c:out value="${day.dateNum}"/></strong>
+                                    <span><c:out value="${day.isToday ? '오늘' : day.dayOfWeek}"/></span>
+                                </a>
+                            </div>
+                        </c:forEach>
+                    </div>
+                </div>
+            </nav>
+        </div>
+    </div>
+    
+    <!-- ###################### 상품 목록 영역 -->
+    <div class="ts-prdlist-scroll" id="prdListScroll">
+        <div class="ts-prdlist" id="tsPrdList" style="display: none;">
+            <c:forEach var="day" items="${dateMapList}" varStatus="status">
+                <div id="prdArea_TV_${day.date}" class="ts-daily-prd" tabindex="0">
+                    <jsp:include page="/WEB-INF/jsp/pub/${view.wasServiceType}/goods/template/goodsUnitSchedule.jsp"></jsp:include>
+                </div>
+            </c:forEach>
+            
+            <c:forEach var="day" items="${dateMapList}" varStatus="status">
+                <div id="prdArea_MLC_${day.date}" class="ts-daily-prd" style="display: none;" tabindex="0">
+                    <jsp:include page="/WEB-INF/jsp/pub/${view.wasServiceType}/mlc/template/mlcUnitSchedule.jsp"></jsp:include>
+                </div>
+            </c:forEach>
+        </div>
+        <div class="ts-prdlist" id="tsPrdEmpty" tabindex="0" style="display: none;">
+            <div class="ts-daily-prd"></div>
+        </div>
+        
+        
+        <!-- footer html  -->
+        <footer class="global-footer" id="tvScheduleFooter">
+            <jsp:include page="/WEB-INF/jsp/pub/fm/common/inc/footer.jsp"></jsp:include>
+        </footer>
+        
+    </div>
+    
+    <!-- ###################### 퀵메뉴 영역 -->
+    <%-- 접근성 개선 (MC2_10_4) --%>
+    <style>
+    .timenav-toggle:focus{outline:orange 2px solid;outline-offset:-2px;}
+    .ts-timenav{position:absolute;bottom:50px;left:0;}
+    </style>
+    <div class="ts-quick dv-quickArea">
+        <c:forEach var="day" items="${dateMapList}" varStatus="status">
+            <div class="ts-quick-timenav" id="quickTimeNav_${day.date}" style="${day.isToday ? 'display: block;' : 'display: none;'}">
+            
+            	<%-- 접근성 개선 (MC2_10_4) : 순서바뀜 --%>
+            	<button type="button" class="timenav-toggle" onclick="scheduleMainMgr.clickQuickToggle();">
+	                <span class="thumb"><i class="ico i-clock">편성표</i></span>
+	                <span class="text"></span>
+	            </button>
+	            
+	            <%-- 접근성 개선 (MC2_10_4) : 순서바뀜 --%>
+	            <nav class="ts-timenav">
+	                <div class="timenav-wrapper">
+	                    <div class="timenav-header">
+	                        <div class="date dv-dateStr" id="selectDateStr"></div>
+	                    </div>
+	                    <div class="timenav-body">
+	                        <div class="swiper-container swiper-timenav" id="swiperTimeNav_${day.date}">
+	                            <div class="swiper-wrapper"></div>
+	                        </div>
+	                    </div>
+	                </div>
+	            </nav>
+	        </div>
+        </c:forEach>
+    
+        <button type="button" class="scroll-to-top" id="prdListToTop"><i class="ico">위로 이동</i></button>
+    </div>
+    
+</div>
+
+
+<!-- ###################################################
+#### 검색창 팝업 영역
+#################################################### -->
+<div class="global-search" id="scheduleSearch">
+    <header class="global-header">
+    <div class="local-header-holder">
+        <div class="local-header local-search-header">
+            <div class="menu-before">
+            	<div class="header-button -close" onclick="scheduleMainMgr.cloaseScheduleSearch();" role="button" tabindex="0"><i class="ico-40 i-caret-h">닫기</i></div>
+            </div>
+            <div class="input-field search-field">
+                <label for="scheduleSearchKwd" class="sr-only">검색어</label>
+                <input type="text" class="input-search" id="scheduleSearchKwd" value="" placeholder="검색어를 입력해 주세요." />
+                <button class="form-clear">입력삭제</button>
+            </div>
+            <div class="menu-after">
+            	<a href="javascript:void(0);" class="header-button -search" onclick="scheduleMainMgr.goScheduleSearch();" role="button">
+                    <i class="ico-40 i-search">검색</i>
+                </a>
+            </div>
+        </div>
+    </div>
+</header>
+<!-- //검색네비게이션 -->
+
+<div class="prdlist-container" style="overflow-y: scroll; height: calc(100% - 53px);">
+    <%-- <jsp:include page="/WEB-INF/jsp/pub/${view.wasServiceType}/tvshopping/inc/tvScheduleSearch.jsp"></jsp:include> --%>
+</div>
+
+
+
+<!-- #######################################################
+#### Script 영역
+######################################################## -->
+<script type="text/javascript">
+(function(){ let me = window.scheduleMainMgr = {
+    
+    /* ############################################################
+    ##### 기본변수
+    ############################################################ */
+    selectedBrcType : "TV"               // 선택한 방송 타입(TV:TV쇼핑, MLC:공영라방)
+    , selectedStdDate : ""             // 선택한 기준 날짜
+    , swiperTimeNav : null             // 퀵메뉴 네비게이션 스와이퍼
+    , imgServerUrl : "${view.imgServerUrl}"
+    , imgProductPath : "${view.imgProductPath}"
+    , isLiveWas : "${view.isLiveWas}"
+    , scheduleApplyId : ""
+    ,scheduleOrder : -1
+    ,scheduleId : null
+    ,CACHE_KEY : "CACHE_DATA"
+    ,isSupportBFcache : false
+    ,obzScheduleId : "" // jmh 추가
+    /* ############################################################
+    ##### 기본함수
+    ############################################################ */
+    ,clearCacheData : function (key){
+        var cache = {
+            data : null
+        };
+        $.cache(key,cache);
+    }
+    ,moveToSchedule(){
+        try {
+            setTimeout(function () {
+                if (!me.isSupportBFcache && me.scheduleId != null) {
+                    if (document.querySelector(me.scheduleId) != null) {
+                        setTimeout(function () {
+                            document.querySelector(me.scheduleId).scrollIntoView();
+                        }, 100);
+                    } else {
+                        setTimeout(function () {
+                            if (document.querSyelector(me.scheduleId) != null) {
+                                document.querySelector(me.scheduleId).scrollIntoView();
+                            }
+                        }, 500);
+                    }
+                }
+            });
+        }catch (e){
+            console.log("moveToSchedule method error!")
+        }
+    }
+    /* ### 초기 실행 함수 */
+    , init : function() {
+
+        me.selectedStdDate = "${stdDate}"; //오늘 날짜
+        let tvDate = me.selectedStdDate; //편성표 기준 날짜
+
+        try {
+            // 상단 탭 클릭 함수
+            $("#tsMainTabs li").on('click', function() {
+                $("#tsMainTabs li").find("a").removeClass("active");
+                $(this).find("a").addClass("active");
+            });
+
+            // 로드시 옵션에 따라 탭설정 (공영라방 탭 -> 편성표 링크)
+            let tabs = '<c:out value="${tabs}" />';
+            if(tabs != null && tabs != '' && tabs == 'MLC'){
+                me.selectedBrcType = "MLC";    // 초기 방송 유형은 공영라방
+                $('#tsMainTabs li[gbn="MLC"]').trigger('click');
+            }
+
+            window.removeEventListener("pageshow", (e) => {});
+            window.addEventListener("pageshow", (e) => {
+                if (e.persisted) {
+                    me.clearCacheData(me.CACHE_KEY);
+                    me.isSupportBFcache = true;
+                }
+            });
+
+            var cacheData = $.cache(me.CACHE_KEY);
+            if(cacheData !=null && cacheData.data != null) {
+                var data = cacheData.data;
+
+                console.log(data)
+                me.selectedBrcType = data.selectedBrcType;
+                me.scheduleId = data.scheduleId;
+                if('MLC' === me.selectedBrcType ){
+                    //공영라방 탭
+                    $('#tsMainTabs li[gbn="MLC"]').trigger('click');
+                }
+
+                tvDate = data.selectedStdDate; //캐시된 날짜 가져오기
+                //캐시 데이터 초기화
+                me.clearCacheData(me.CACHE_KEY);
+            }
+        }catch (e){
+            console.log("cache data delete error!");
+        }
+
+       //날짜 유효성 체크
+        if ( !moment(tvDate,"YYYYMMDD",true).isValid() ) {
+            tvDate = me.selectedStdDate;
+        }
+
+        if(tvDate) {
+        	$('#swiperDateNav .swiper-slide > a[data-date]').removeClass('active');
+        	$('#swiperDateNav .swiper-slide > a[data-date="' + tvDate + '"]').addClass('active');
+        	me.selectedStdDate = String(tvDate);   // 선택한 기준 날짜 저장
+        	new DateNavBar();
+        }
+
+        $("#globalFooter").hide();
+
+        // 초기 방송 유형은 TV쇼핑
+        /*   if(me.isEmpty(me.selectedBrcType)){
+               me.selectedBrcType = "MLC";
+           }*/
+
+        if (me.selectedBrcType == 'TV') {
+            $("body").removeClass("ts-gylive").addClass("ts-tv");
+        } else {
+            $("body").removeClass("ts-tv").addClass("ts-gylive");
+        }
+
+        
+        me.scheduleApplyId = "prdArea_" + me.selectedBrcType + "_" + me.selectedStdDate;
+        if(me.selectedBrcType == 'TV') goodsUnitTool.removeApp(me.scheduleApplyId);	// 앱ID가 잔존하는 경우 삭제
+        me.scheduleListAjax();
+        
+        $(document).on('scroll', function() {
+            if(window.pageYOffset > 700) {
+                $('.ts-quick').hide();
+            } else {
+                $('.ts-quick').show();
+            }
+        });
+
+        //상품상세 이동시
+        $(document).on("click","#tsPrdList .img-wrapper,#prdListScroll #tsPrdList .content-wrapper" , function() {
+
+            let schedulePrd = $(this).parents(".time-box");
+            let scheduleOrder = $(this).parents(".ts-daily-prd").find(".time-box").index(schedulePrd);
+            let scheduleId = $(this).parents(".time-box").attr("id");
+
+            let cache = {
+                            data : {
+                                'selectedStdDate' : me.selectedStdDate
+                                ,'selectedBrcType': me.selectedBrcType
+                                ,'scheduleOrder' : scheduleOrder
+                                ,'scheduleId' : "#" + scheduleId
+                            }
+                        };
+            $.cache(me.CACHE_KEY,cache);
+        });
+
+        
+      /*  $('#gnbTab').find('.dv-gnb > li').on('click', function() {
+            console.log("  remove tvScheduleDate")
+            sessionStorage.removeItem('tvScheduleDate');
+       		if($('#scheduleSearch').css('display') != 'none') me.cloaseScheduleSearch();
+       		$('#gnbTab').find('.dv-gnb > li').off('click');
+        });*/
+        
+        // 목록 초기화 진행
+        me.initAppPrdList();
+    }
+    
+    /* ### 편성표 방송 유형 기준 검색 함수 */
+    , searchBrcTypeScheduleProc : function(type) {
+        me.selectedBrcType = type;   // 선택한 방송 유형 저장
+        me.scheduleApplyId = "prdArea_" + me.selectedBrcType + "_" + me.selectedStdDate;
+        // 첫 로드시 init과 중복 호출로 다음과 같은 조건부 추가
+        if (me.selectedStdDate != null && me.selectedStdDate.length > 0) {
+        	me.scheduleListAjax();
+        }
+        
+        //$(".dv-quickArea").remove();
+    }
+    
+    /* ### 편성표 날짜 기준 검색 함수 */
+    , searchDateScheduleProc : function(date) {
+        me.scheduleId = null // 초기화
+    	let todayDate = dateTool.getCurrentDate("yyyyMMdd");
+    	let applyId = "";
+    	commonTool.wait.show('timeClose');
+    	
+    	if(me.selectedBrcType == "TV") {
+    		applyId = $("#prdArea_TV_" + date).find(".time-box").attr("id");
+    	} else {
+    		applyId = $("#prdArea_MLC_" + date).find(".time-box").attr("id");
+    	}
+
+    	if(todayDate == date || typeof applyId == "undefined") {
+            console.log("11  "+date);
+            //sessionStorage.setItem('tvScheduleDate', date);
+            me.selectedStdDate = String(date);   // 선택한 기준 날짜 저장
+            me.scheduleApplyId = "prdArea_" + me.selectedBrcType + "_" + me.selectedStdDate;
+            //goodsUnitTool.removeApp(me.scheduleApplyId);	// 앱ID가 잔존하는 경우 삭제
+            if(me.selectedBrcType == "TV") goodsUnitTool.clearTimer(me.scheduleApplyId);
+            me.scheduleListAjax();
+            commonTool.wait.hide();
+    	} else {
+    	    console.log("22  "+date);
+            //sessionStorage.setItem('tvScheduleDate', date);
+            me.selectedStdDate = String(date);   // 선택한 기준 날짜 저장
+            me.scheduleApplyId = "prdArea_" + me.selectedBrcType + "_" + me.selectedStdDate;
+    		me.scheduleHtmlProc();
+    		commonTool.wait.hide();
+			let quickTimeNavId = "quickTimeNav_" + me.selectedStdDate;
+            $(".dv-quickArea .ts-quick-timenav").hide();
+            $(".dv-quickArea").find("#" + quickTimeNavId).show();
+    	}
+    	
+    	
+    	UI.waFocus("#"+me.scheduleApplyId); // 접근성 개선
+    	
+    }
+    
+    /* ### 편성표 목록 ajax */
+    , scheduleListAjax : function() {
+        $("#tsPrdList").hide();
+        $("#tsPrdEmpty").hide();
+        $("#tsPrdList > div").hide();
+        $("#tsPrdList > div").removeClass("active");
+        
+        let url = "";
+        let dataJson = {};  // dataJson 구성
+        
+        if(me.selectedBrcType == "MLC") {
+            url = "/mlc/selectMlcSchedulePrdList.do";
+            dataJson.cacheType = "SCHEDULE";
+        } else if(me.selectedBrcType == "TV") {
+            url = "/tvshopping/selectScheduleSub.do";
+        }
+        
+        dataJson.brcStdDate = me.selectedStdDate;
+        
+        $.ajax({
+              url : url
+            , type : "POST"
+            , dataType : "json"
+            , data : dataJson
+            , success : function(result) {
+            	//console.log(result);
+                me.getScheduleData(result);
+            }
+            , fail : function(data,status,err){
+                console.log(textStatus);
+                console.log(err);
+            }
+        });
+	}
+	/* app list 초기화 */
+	, initAppPrdList: function(){
+		// 유닛 초기화
+		$('#prdListScroll div.ts-daily-prd').each(function(){
+			let id = $(this).attr('id');
+			//console.log('id='+id);
+			if(!me.isEmpty(id)){
+				if(id.indexOf('prdArea_TV') > -1){
+					goodsUnitTool.setOptions(id, {"includeBrdCstTgtPrd" : true, "isSlStsCd130" : true});	
+				}else{
+					mlcUnitTool.setOptions(id, {"includeBrdCstTgtPrd" : true});
+				}
+			}
+		});
+		
+	}
+	/* ### 편성표 데이터 구성 */
+	, getScheduleData : function(data) {
+
+		// 퀵메뉴 별도 활성화 처리
+		if(me.selectedBrcType == "MLC") {
+            $(".dv-quickArea .ts-quick-timenav").hide();
+        }
+				
+		if (data.prdList.length > 0) {
+            let dataCopy = {};
+            $.extend(true,dataCopy,data);
+
+            let scheduleListMap = [];
+            let scheduleMap = {};
+            let prdSet = 0;
+            let isFirstPrd = false;
+            
+            // ##################################### TV쇼핑 데이터 구성
+            if(me.selectedBrcType == "TV") {
+                let brcPgmSchdgId = "";
+                
+                for (var i = 0; i < dataCopy.prdList.length; i++) {
+                    let scheduleData = dataCopy.prdList[i];
+                    
+                    // jmh 추가
+                    if( "Y" == scheduleData.obzYn ){
+                        me.obzScheduleId = "schedulePrd_" + scheduleData.brcPgmSchdgId;
+                    }
+                    
+                    if (brcPgmSchdgId != scheduleData.brcPgmSchdgId) {
+                        brcPgmSchdgId = scheduleData.brcPgmSchdgId;
+                        prdSet++;
+                        scheduleMap[prdSet + "_" + brcPgmSchdgId] = [];
+                        isFirstPrd = true;
+                    } else {
+                        isFirstPrd = false;
+                    }
+
+                    let tgtPrdInfo = scheduleData.tgtPrdInfo;
+                    if(tgtPrdInfo !=null){
+                        Object.keys(tgtPrdInfo ).forEach(function(key){
+                            if(key != "brcBgnDtm") {
+                                scheduleData[key] = scheduleData.tgtPrdInfo[key];
+                            }
+                        })
+                    }
+
+                    scheduleData.isFirstPrd = isFirstPrd;
+                    scheduleMap[prdSet + "_" + brcPgmSchdgId].push(scheduleData);
+                }
+                
+                // 현재일자 (년월일시분)
+                //let nowTime = dateTool.getCurrentDate('yyyyMMddHHmm');
+                // jmh 추가 테스트용
+                let nowTime = 202609212140;
+                console.log(" 현재시간 "+dateTool.getCurrentDate('yyyyMMddHHmm'));
+                let queryString = window.location.search,
+                urlParams = new URLSearchParams(queryString);
+                
+                if( "0" != urlParams.get("cnt")){
+                     nowTime = 202609211010;
+                }
+                
+                
+                
+                
+                
+                Object.keys(scheduleMap).forEach(function(key) {
+                    let schedulePrdListData = scheduleMap[key];
+                    let currentDtm = nowTime;
+                    let searchBrcBgnDtm = schedulePrdListData[0].brcBgnDtm;
+                    let searchBrcEndDtm = schedulePrdListData[0].brcEndDtm;
+                    let isOnAir = currentDtm >= searchBrcBgnDtm && currentDtm < searchBrcEndDtm;
+                    let isPreOrder = currentDtm < searchBrcBgnDtm   ? true : false;
+                    let prdId = "";
+                    let prdCstTgtPrdList = [];
+                    
+                    // 대표상품, 함께하는 상품 구분처리
+                    $.each(schedulePrdListData, function(index, item){
+                         prdCstTgtPrdList.push(item);
+                    });
+                    /*
+                    let jsonData = {
+                        brcPgmSchdgId : key.split("_")[1]                  // 방송 프로그램 편성표 ID
+                        //, prdList : schedulePrdListData
+                        , currentDtm : currentDtm
+                        , brcBgnDtm : schedulePrdListData[0].brcBgnDtm     // 방송 시작 일시
+                        , brcEndDtm : schedulePrdListData[0].brcEndDtm     // 방송 종료 일시
+                        , searchPrd: isOnAir ? 'CURRENT' : (isPreOrder ? 'NEXT' : 'PREV')
+                        , prdId : prdId
+                        , prdCstTgtPrdList : prdCstTgtPrdList
+                        , prdLclsNm : schedulePrdListData[0].prdLclsNm
+                        , obzYn : schedulePrdListData[0].obzYn
+                        , obzFileUrl : me.imgServerUrl.replace("ECMCFO", "") + schedulePrdListData[0].omzFileNm
+                        , prdImgUrl : me.imgProductPath + schedulePrdListData[0].imgUrl
+                        , brcPgmNm : schedulePrdListData[0].brcPgmNm
+                    };*/
+                    let jsonData = {};
+                    $.extend(true,jsonData,schedulePrdListData[0]);
+                    jsonData.goodsUnitInfoDone = true;
+                    jsonData.obzFileUrl = me.imgServerUrl.replace("ECMCFO", "") + jsonData.omzFileNm
+                    jsonData.brdCstTgtPrdList =  prdCstTgtPrdList ;
+                    jsonData.searchPrd = isOnAir ? 'CURRENT' : (isPreOrder ? 'NEXT' : 'PREV');
+                    jsonData.prdImgUrl =   jsonData.imgUrl !=null ? me.imgProductPath + jsonData.imgUrl : '';
+                    scheduleListMap.push(jsonData);
+                })
+                
+                //console.log("scheduleListMap ::: ", scheduleListMap);
+                let prdIdList = [];
+                $.each(scheduleListMap, function (idx, prd) {
+                    let obj = {idx: idx, prdId: prd.prdId};
+                    prdIdList.push(obj);
+                })
+
+                // 편성표 상품유닛 적용
+                goodsUnitTool.clearPrdList(me.scheduleApplyId);
+                goodsUnitTool.setOptions(me.scheduleApplyId, {"includeBrdCstTgtPrd" : false, "isSlStsCd130" : true});
+                goodsUnitTool.setPrdList(me.scheduleApplyId, scheduleListMap).done(function(){
+                    me.scheduleHtmlProc();
+                    goodsUnitTool.setTimerCount(me.scheduleApplyId,prdIdList);
+                    me.moveToSchedule();
+                });
+                
+                // 편성표 퀵메뉴 데이터 구성
+                me.scheduleQuickData(scheduleListMap);
+                
+            // ##################################### 공영라방 데이터 구성
+            } else {
+                let brcInfoNo = "";
+                
+                for (var i = 0; i < data.prdList.length; i++) {
+                    let scheduleData = data.prdList[i];
+
+                    if (brcInfoNo != scheduleData.brcInfoNo) {
+                        brcInfoNo = scheduleData.brcInfoNo;
+                        prdSet++;
+                        scheduleMap[prdSet + "_" + brcInfoNo] = [];
+                        isFirstPrd = true;
+                    } else {
+                        isFirstPrd = false;
+                    }
+
+                    scheduleData.isFirstPrd = isFirstPrd;
+                    scheduleMap[prdSet + "_" + brcInfoNo].push(scheduleData);
+                }
+             	// 현재일자 (년월일시분)
+                let nowTime = dateTool.getCurrentDate('yyyyMMddHHmm');
+                
+                Object.keys(scheduleMap).forEach(function(key) {
+                    let schedulePrdListData = scheduleMap[key];
+                    
+                    let brcStatCd = schedulePrdListData[0].brcStatCd;
+                    let brcSchdgDtime = schedulePrdListData[0].brcSchdgDtime;
+                    let prdCstTgtPrdList = [];
+                    
+                    let searchPrd = "";
+                    let currentTime = nowTime;
+                    let dt = dateTool.getDateFromFormat(brcSchdgDtime,'yyyy.MM.dd HH:mm');
+                    let schdgDtFormat = dateTool.formatDate(dt, 'yyyyMMddHHmm');
+                    if(schedulePrdListData[0].brcStatCd == "10") {
+                        searchPrd = "CURRENT";
+                    } else {
+                        if(currentTime > schdgDtFormat) {
+                            searchPrd = "PREV";
+                        } else {
+                            searchPrd = "NEXT";
+                        }
+                    }
+                    
+                    // 대표상품, 함께하는 상품 구분처리
+                    $.each(schedulePrdListData, function(index, item){
+                        if(item.isFirstPrd) {
+                            prdId = item.prdId;
+                        } else {
+                            prdCstTgtPrdList.push(item);
+                        }
+                    });
+                    
+                    let jsonData = {
+                        brcInfoNo : key.split("_")[1]                  // 방송 프로그램 편성표 ID
+                        , brcStatCd : brcStatCd
+                        , brcTit : schedulePrdListData[0].brcTit
+                        , brcSchdgDtime : brcSchdgDtime
+                        , brcStrtDtime : brcSchdgDtime
+                        , brcEndDtime : schedulePrdListData[0].brcSchdgEndDtime
+                        , scrYn : schedulePrdListData[0].scrYn
+                        , scrImgUrlExt : schedulePrdListData[0].scrImgUrlExt
+                        , brcLtblImgExt : schedulePrdListData[0].brcLtblImgExt
+                        , srcCnt : schedulePrdListData[0].srcCnt
+                        , suppNm : schedulePrdListData[0].suppNm
+                        , goodsNo : prdId
+                        //, brdCstTgtPrdList : prdCstTgtPrdList
+                        , isAlarm : schedulePrdListData[0].isAlarm
+                        , searchPrd : searchPrd
+                        , brcBgnDtm : schdgDtFormat
+                        , prdImgUrl : schedulePrdListData[0] == 'Y' ? 
+                        		pu_mlcImgServerUrl + "/brc/" + schedulePrdListData[0].brcInfoNo + "/" + "thumbnail2" + "." + schedulePrdListData[0].scrImgUrlExt 
+                        		/* #53597 방송정보 이미지 개선 smmoon */                 
+                        		: pu_mlcImgServerUrl + "/brc/" + schedulePrdListData[0].brcInfoNo + "/" + "thumbnail" + schedulePrdListData[0].brcLtblImgExt
+                    };
+                    
+                    scheduleListMap.push(jsonData);
+                });
+                
+                //console.log("scheduleListMap ::::::: ", scheduleListMap);
+                
+                // 편성표 상품유닛 적용
+                mlcUnitTool.clearMlcList(me.scheduleApplyId);
+                mlcUnitTool.setOptions(me.scheduleApplyId, {"includeBrdCstTgtPrd" : true});
+                mlcUnitTool.appendMlcList(me.scheduleApplyId, scheduleListMap).done(function(){
+                	me.scheduleHtmlProc();
+                    me.moveToSchedule();
+                });
+                
+                me.scheduleQuickData(scheduleListMap);
+            }
+            
+        } else {
+        	$('#quickTimeNav_' + me.selectedStdDate).hide();
+            let stdDateFmt = me.selectedStdDate.substring(0, 4) + "." + me.selectedStdDate.substring(4, 6) + "." + me.selectedStdDate.substring(6, 8);
+            let stdDayOfWeek = me.getDayOfWeek(me.selectedStdDate) + "요일";
+            
+            let html = '';
+            html += '<div class="ready-tv-schedule">';
+            html += '  <i class="ico-42 i-tv-red"></i>';
+            html += '  <h3 class="hd-l mt-8 mb-0 t-center">';
+            html += '      <span class="t-14 t-medium">'+ stdDateFmt +' '+ stdDayOfWeek +'</span>';
+            if (moment().format('YYYY.MM.DD') < stdDateFmt) {
+            	html += '      <span class="d-block">편성을 준비중입니다.</span>';
+            } else {
+            	html += '      <span class="d-block">편성된 정보가 없습니다.</span>';
+            }
+            html += '  </h3>';
+            html += '</div>';
+            
+            $("#tsPrdEmpty .ts-daily-prd").html(html);
+            $(".p-tvschedule").addClass("dv-schedule-empty");
+            $("#tsPrdEmpty").show();
+            
+            
+            UI.waFocus("#tsPrdEmpty",{key:"tsPrdEmpty",init:false}); // 접근성 개선 , key값 기준, 처음 1회는 실행안함
+            
+            // 편성표 퀵메뉴 데이터 구성
+            me.scheduleQuickData(null);
+            
+        }
+	}
+	
+	/* 편성표 Html 처리 */
+	, scheduleHtmlProc : function() {
+		$("#tsPrdList > div").hide();
+		$("#tsPrdList > div").removeClass("active");
+		let todayDate = dateTool.getCurrentDate("yyyyMMdd");
+		let currentTime = Number(dateTool.getCurrentDate("HHmm"));
+		
+		$("#prdListScroll").scrollTop(0);
+     	$('#swiperTimeNav_' +  me.selectedStdDate).find('.timenav-link').removeClass('active');
+     	if($('#swiperDateNav').find('.swiper-slide:first > a').data('date').toString() == me.selectedStdDate 
+     			|| $('#swiperDateNav').find('.swiper-slide:last > a').data('date').toString() == me.selectedStdDate) {
+     		$('#swiperTimeNav_' +  me.selectedStdDate).find('.swiper-slide').eq(0).find('.timenav-link').addClass('active');
+     	}else {
+     		$('#swiperTimeNav_' +  me.selectedStdDate).find('.swiper-slide').eq(1).find('.timenav-link').addClass('active');
+     	}
+		
+		if(me.selectedBrcType == "TV") {
+			// jmh 추가
+			let queryString = window.location.search,
+            urlParams = new URLSearchParams(queryString);
+            console.log("yn "+urlParams.get("nextBcastFocusYn"));
+            
+            // jmh 추가 테스트용
+            if( "1" != urlParams.get("cnt")){
+                let url = "https://rlm.gongyoungshop.kr:9443/main.do?idx=9&nextBcastFocusYn=Y&cnt=1";
+                history.replaceState(null, '', url);    
+            }
+                
+			
+            // 영역 활성화
+            $("#" + me.scheduleApplyId).addClass("active");
+            $("#" + me.scheduleApplyId).show();
+            $("#tsPrdList").show();
+            $("#tsPrdEmpty").hide();
+            $(".p-tvschedule").removeClass("dv-schedule-empty");
+            
+            // 라이브 영역 스크롤 이동
+            let liveTimeBoxId = "";
+            let dvHeader = $("#" + me.scheduleApplyId + " div.prdthumb-header");
+            dvHeader.each(function(){
+                if($(this).hasClass("tv-live")) {
+                    liveTimeBoxId = $(this).parents("div.time-box").attr("id");
+                    console.log("liv1 : "+liveTimeBoxId);
+                }
+            });
+                                        
+            // next 방송ID 축출
+            if(me.isEmpty(liveTimeBoxId)){
+                liveTimeBoxId = $("#" + me.scheduleApplyId + " div.prdthumb-header.tv-next:first").closest("div.time-box").attr("id");
+                console.log("liv2 : "+liveTimeBoxId);
+            }
+            
+            // jmh 추가
+            if( "Y" == urlParams.get("nextBcastFocusYn")){
+                 
+                // 다음 방송 
+                liveTimeBoxId = $("#" + me.scheduleApplyId + " div.prdthumb-header.tv-next:first").closest("div.time-box").attr("id");
+                //console.log("info : "+me.obzScheduleId +" / "+me.lastScheduleId );
+                //console.log("next : "+liveTimeBoxId);
+                
+                console.log("==> "+liveTimeBoxId);
+                console.log("==> "+me.obzScheduleId);
+                
+                if(liveTimeBoxId == "" || typeof liveTimeBoxId == "undefined") {
+                    console.log("마지막 "+me.selectedStdDate);
+                    scheduleMainMgr.searchDateScheduleProc("20260922");
+                    return;
+                    
+                }else if (me.obzScheduleId == liveTimeBoxId ){    // 옴부즈 방송일 때
+                    
+                    liveTimeBoxId = $("#" + me.scheduleApplyId + " div.prdthumb-header.tv-next").eq(1).closest("div.time-box").attr("id");
+                    console.log(" 옴부즈~~"+liveTimeBoxId)
+                }
+            }
+            
+            if(pu_serverProfilesType != 'stg' && pu_serverProfilesType != 'oper'){		// 운영이 아닌 경우만 동작
+            	imageCdnMng.imgAct();
+            }
+            /* GNB영역 최소화 */
+            //  GyGnb.close();   // GNB 영역으로 이동함 (2023-03-13 신문섭)
+            
+            if(liveTimeBoxId != "" && typeof liveTimeBoxId != "undefined") {
+                setTimeout(function(){
+                    if (me.scheduleId == null) {
+                        console.log("726 : "+liveTimeBoxId);
+                        me.prdListTo(liveTimeBoxId, 0);
+                    }
+                }, 100);
+            
+            } else {
+                if(todayDate == me.selectedStdDate) {
+                    $('#quickTimeNav_' + me.selectedStdDate).find('.timenav-link').each(function() {
+                        let liveTime = Number($(this).find('.time').text().replace(/:/g, ''));
+                        if(currentTime < liveTime) {
+                            console.log("736 : "+currentTime +" < "+liveTime);
+                            me.prdListTo($($(this).attr('href')).attr('id'));	
+                            return false;
+                        }
+                    });
+                }
+            }
+            
+		} else {
+			
+			// 영역 활성화
+            $("#" + me.scheduleApplyId).addClass("active");
+            $("#" + me.scheduleApplyId).show();
+            $("#tsPrdList").show();
+            $("#tsPrdEmpty").hide();
+            $(".p-tvschedule").removeClass("dv-schedule-empty");
+            
+            // 라이브 영역 스크롤 이동
+            let liveTimeBoxId = "";
+            
+            $("#" + me.scheduleApplyId + " div.prdthumb-header").each(function(){
+                if($(this).hasClass("gy-live")) {
+                    liveTimeBoxId = $(this).parents("div.time-box").attr("id");
+                }
+            });
+            
+            if(liveTimeBoxId != "" && typeof liveTimeBoxId != "undefined") {
+                setTimeout(function(){
+                    console.log("764 ");
+                    me.prdListTo(liveTimeBoxId, 0);
+                }, 100);
+            } else {
+            	if(todayDate == me.selectedStdDate) {
+            		$('#quickTimeNav_' + me.selectedStdDate).find('.timenav-link').each(function() {
+            			let liveTime = Number($(this).find('.time').text().replace(/:/g, ''));
+            			if(currentTime < liveTime) {
+            			console.log("772 "+currentTime +" < "+liveTime);
+           					me.prdListTo($($(this).attr('href')).attr('id'));	
+            				return false;
+            			}
+            		});
+            	}
+            }
+		}
+		
+	}
+	
+	/* ### 편성표 퀵메뉴 데이터 구성 */
+	, scheduleQuickData : function(dataList) {
+		
+		let stdYear = me.selectedStdDate.substring(0, 4);
+        let stdMonth = parseInt(me.selectedStdDate.substring(4, 6))-1;
+        let stdDay = me.selectedStdDate.substring(6, 8);
+        
+        let seletedDate = new Date(stdYear, stdMonth, stdDay);
+        
+        let stdDate = new Date(seletedDate);
+        let prevDate = new Date(seletedDate.setDate(seletedDate.getDate() - 1));
+        let nextDate = new Date(seletedDate.setDate(seletedDate.getDate() + 2));
+        
+        let stdDateFmt = String(stdDate.getFullYear()) + String(commonTool.leftPad(String(stdDate.getMonth()+1), 2, 0)) + String(commonTool.leftPad(String(stdDate.getDate()), 2, 0));
+        let prevDateFmt = String(prevDate.getFullYear()) + String(commonTool.leftPad(String(prevDate.getMonth()+1), 2, 0)) + String(commonTool.leftPad(String(prevDate.getDate()), 2, 0));
+        let nextDateFmt = String(nextDate.getFullYear()) + String(commonTool.leftPad(String(nextDate.getMonth()+1), 2, 0)) + String(commonTool.leftPad(String(nextDate.getDate()), 2, 0));
+        
+        let prevChk = false;
+        let nextChk = false;
+        
+        let prevDataJson = {};
+        let nextDataJson = {};
+        let applyDateArr = [];
+        
+        let html = '';
+        
+        $("#swiperDateNav .swiper-slide").each(function(){
+            let date = $(this).find("a").data("date");
+            if(date == prevDateFmt) { 
+                prevChk = true;
+                prevDataJson.date = prevDateFmt;
+                prevDataJson.type = "PREV";
+                prevDataJson.txt = prevDateFmt.substring(4, 6) + "." + prevDateFmt.substring(6, 8) + "(" + me.getDayOfWeek(prevDateFmt) + ")";
+            }
+            if(date == nextDateFmt) {
+                nextChk = true;
+                nextDataJson.date = nextDateFmt;
+                nextDataJson.type = "NEXT";
+                nextDataJson.txt = nextDateFmt.substring(4, 6) + "." + nextDateFmt.substring(6, 8) + "(" + me.getDayOfWeek(nextDateFmt) + ")";
+            }
+        });
+        
+        if(prevChk) { applyDateArr.push(prevDataJson); }
+		
+        // 편성 데이터 존재여부 구분 처리
+		if(dataList != null) {
+	        
+	        $.each(dataList, function(index, item){
+                //console.log(item)
+	            let dataJson = {};
+	            dataJson.type = "TODAY";
+	            dataJson.txt = item.brcBgnDtm.substring(8, 10) + ":" + item.brcBgnDtm.substring(10, 12);
+	            dataJson.brcPgmSchdgId = item.brcPgmSchdgId;
+	            dataJson.brcInfoNo = item.brcInfoNo;
+	            dataJson.searchPrd = item.searchPrd;
+	            dataJson.prdImgUrl = item.prdImgUrl.replace("_200x200", "");
+	            dataJson.obzYn = item.obzYn;
+	            dataJson.obzFileUrl = item.obzFileUrl;
+	            applyDateArr.push(dataJson);
+	        });
+	        if(nextChk) { applyDateArr.push(nextDataJson); }
+	        
+	        $.each(applyDateArr, function(index, item){
+	            if(item.type == "PREV") {
+	                html += '<div class="swiper-slide slide-top" data-index="'+ index +'">';
+	                html += '   <a href="javascript:void(0);" class="timenav-prev" onclick="scheduleMainMgr.clickScheduleProc('+ item.date +')">';
+	                html += '       <i class="ico-20 i-caret-v-gray flip">이전</i>';
+	                html += '       <span class="date">'+ item.txt +'</span>';
+	                html += '   </a>';
+	                html += '</div>';
+	            } else if(item.type == "TODAY") {
+	                let tit = item.searchPrd == "CURRENT" ? "LIVE" : item.txt;
+	                
+	                html += '<div class="swiper-slide" data-index="'+ index +'">';
+	                html += '   <a href="' + (me.selectedBrcType == 'TV' ? '#schedulePrd_' : '#mlcSchedulePrd_') + (item.brcPgmSchdgId ? item.brcPgmSchdgId : item.brcInfoNo) +'" class="timenav-link" onclick="scheduleMainMgr.scrollToMove('+ index +')">';
+	                
+	                if(item.obzYn == "Y") {
+	                	html += '     <div class="thumb"><img data-origin="'+ item.obzFileUrl +'" alt="방송 상품명"></div>';	
+	                } else {
+	                	if(me.isLiveWas == "true") {
+	                		html += '       <div class="thumb"><img src="'+ item.prdImgUrl +'/dims/resize/Q_80,100" alt=""></div>';
+	                    } else {
+	                    	html += '       <div class="thumb"><img data-origin="'+ item.prdImgUrl +'" alt=""></div>';
+	                    }
+	                }
+	                
+	                html += '       <div class="time">'+ tit +'</div>';
+	                html += '   </a>';
+	                html += '</div>';
+	            } else if(item.type == "NEXT") {
+	                html += '<div class="swiper-slide slide-bottom" data-index="'+ index +'">';
+	                html += '   <a href="javascript:void(0);" class="timenav-next" onclick="scheduleMainMgr.clickScheduleProc('+ item.date +')">';
+	                html += '       <i class="ico-20 i-caret-v-gray">다음</i>';
+	                html += '       <span class="date">'+ item.txt +'</span>';
+	                html += '   </a>';
+	                html += '</div>';
+	            }
+	        });
+	        
+	        let quickTimeNavId = "quickTimeNav_" + me.selectedStdDate;
+	        let quickSwiperId = "swiperTimeNav_" + me.selectedStdDate;
+	        $(".dv-quickArea .ts-quick-timenav").hide();
+	        $(".dv-quickArea").find("#" + quickTimeNavId).show();
+	        
+	        $("#" + quickSwiperId + " .swiper-wrapper").html(html);
+	        $("#" + quickTimeNavId).find(".dv-dateStr").html(stdDateFmt.substring(4, 6) + "." + commonTool.fillZero(2, stdDateFmt.substring(6, 8)) + "(" + me.getDayOfWeek(stdDateFmt) + ")");
+	        
+	        $(".dv-quickArea").find("#" + quickTimeNavId).find("a").attr("tabindex","-1"); // 접근성 개선 (MC2_10_1)
+	        
+	        //$("#swiperTimeNav .swiper-wrapper").html(html);
+            //$("#selectDateStr").html(stdDateFmt.substring(4, 6) + "." + commonTool.fillZero(2, stdDateFmt.substring(6, 8)) + "(" + me.getDayOfWeek(stdDateFmt) + ")");
+	        
+            
+	        me.swiperTimeNav = new Swiper('#swiperTimeNav_' + me.selectedStdDate, {
+	            direction: 'vertical',
+	            centeredSlides: true,
+	            centeredSlidesBounds: true,
+	            freeMode: true,
+	            slidesPerView: 'auto',
+	        });
+	        
+	        
+		} else {
+			$(".dv-quickArea .ts-quick-timenav").hide();
+			
+			
+			
+			
+			/* if(nextChk) { applyDateArr.push(nextDataJson); }
+			
+			html += '<div class="swiper-slide" data-index="1">';
+			html += '    <div class="timenav-ready">편성중</div>';
+			html += '</div>';
+			
+			$.each(applyDateArr, function(index, item){
+                if(item.type == "NEXT") {
+                    html += '<div class="swiper-slide slide-bottom" data-index="2">';
+                    html += '   <a href="javascript:void(0);" class="timenav-next" onclick="scheduleMainMgr.clickScheduleProc('+ item.date +')">';
+                    html += '       <i class="ico-20 i-caret-v-gray">다음</i>';
+                    html += '       <span class="date">'+ item.txt +'</span>';
+                    html += '   </a>';
+                    html += '</div>';
+                }
+            });
+			
+			let quickTimeNavId = "quickTimeNav_" + me.selectedStdDate;
+			let quickSwiperId = "swiperTimeNav_" + me.selectedStdDate;
+            $(".dv-quickArea .ts-quick-timenav").hide();
+            $(".dv-quickArea").find("#" + quickTimeNavId).show();
+            
+            $("#" + quickSwiperId + " .swiper-wrapper").html(html);
+            $("#" + quickTimeNavId).find(".dv-dateStr").html(stdDateFmt.substring(4, 6) + "." + commonTool.fillZero(2, stdDateFmt.substring(6, 8)) + "(" + me.getDayOfWeek(stdDateFmt) + ")"); */
+			
+			//$("#swiperTimeNav .swiper-wrapper").html(html);
+			//$("#selectDateStr").html(stdDateFmt.substring(4, 6) + "." + commonTool.fillZero(2, stdDateFmt.substring(6, 8)) + "(" + me.getDayOfWeek(stdDateFmt) + ")");
+		}
+        
+		// Swiper 슬라이드 실행
+        /* if(null == me.swiperTimeNav) {
+        	console.log("aaaaaaaaaaaaaaaaaaaa");
+            me.swiperTimeNav = new Swiper('#swiperTimeNav_' + me.selectedStdDate, {
+                direction: 'vertical',
+                centeredSlides: true,
+                centeredSlidesBounds: true,
+                freeMode: true,
+                slidesPerView: 'auto',
+            });
+        } else {
+        	console.log("bbbbbbbbbbbbbbbbbbb");
+            me.swiperTimeNav.update();
+        } */
+        
+		
+	}
+	
+	/* ### 퀵메뉴 클릭 함수 */
+	, clickQuickToggle : function () {
+		let quickTimeNavId = "quickTimeNav_" + me.selectedStdDate;
+		
+		let quickTimeNavSelector = '#' + quickTimeNavId;
+		
+		$(quickTimeNavSelector).toggleClass('show');
+        if($(quickTimeNavSelector).hasClass('show')) {
+        	$(quickTimeNavSelector).find("a").attr("tabindex","0"); // 접근성 개선 (MC2_10_1)
+          $(this).addClass('close');
+        } else {
+        	$(quickTimeNavSelector).find("a").attr("tabindex","-1"); // 접근성 개선 (MC2_10_1)
+          $(this).removeClass('close');
+        }
+	}
+	
+	/* ### 편성표 검색 클릭 함수 */
+    , clickScheduleProc : function(dateStr) {
+    	$("#swiperDateNav .swiper-slide").each(function(){
+            let date = $(this).find("a").data("date");
+            if(date == dateStr) { 
+                $(this).find("a").trigger("click");
+                return;
+            }
+        });
+    }
+	
+	/* ### 방송과 함께하는 상품 노출/비노출 처리 */
+	, prdCstTgtActive : function(el, gubun) {
+        if(gubun == 0) {
+            $(el).closest(".with-item").addClass("show");
+        } else {
+            $(el).closest(".with-item").removeClass("show");
+        }
+    }
+	
+	/* ### 특정날짜 요일 추출 함수 */
+	, getDayOfWeek : function(dateStr) {
+		let week = ['일', '월', '화', '수', '목', '금', '토'];
+		if(dateStr.indexOf("-") == -1) {
+			dateStr = dateStr.substring(0,4) + "-" + dateStr.substring(4,6) + "-" + dateStr.substring(6,8);
+        }
+		let dayOfWeek = week[new Date(dateStr).getDay()];
+        return dayOfWeek;
+	}
+	
+	/* ### 편성표 검색 팝업 활성화 */
+	, openScheduleSearch : function() {
+		$("#scheduleSearch").show();
+		$("body").css("overflow-y", "hidden");
+		
+		UI.waFocus("#scheduleSearch .header-button.-close"); // 접근성 개선
+	}
+	
+	/* ### 편성표 검색 팝업 닫기 */
+    , cloaseScheduleSearch : function() {
+        $("#scheduleSearch").hide();
+        $("body").css("overflow-y", "scroll");
+        
+        UI.waFocus(".btn.-openScheduleSearch"); // 접근성 개선
+    }
+	
+    /* ### 편성표 검색 이동 */
+    , goScheduleSearch : function() {
+        
+        let searchKwd = $("#scheduleSearchKwd").val();
+        
+        if(searchKwd == "") {
+            commonTool.alert("검색어를 입력해 주세요.").done(function() {
+                $("#scheduleSearchKwd").focus();
+            });
+            return;
+        }
+        
+        if(/[\{\}\/?;:|\)*~`!^\<>@\#$%&\\\=\(\'\"]/gi.test(searchKwd)) {
+            commonTool.alert('입력하신 키워드 단어에 <br/> 특수문자가 들어가 있습니다!').done(function() {
+            	$("#scheduleSearchKwd").focus();
+            });
+            return;
+        }
+        
+        location.href = "/tvshopping/tvScheduleSearch.do?searchKeyword=" + searchKwd;
+        
+    }
+    
+    /* ### 편성표 라이브 스크롤 이동 함수 */
+    , goScheduleLive : function(type) {
+    	
+    	// GNB영역 최소화
+        if($('body').hasClass('gy-home')) $('body').removeClass('gy-home');
+        if($('body').hasClass('has-top-app')) $('body').removeClass('has-top-app');
+        GyGnb.close();
+    	
+        // 방송 노출
+    	let currentDate = dateTool.getCurrentDate('yyyyMMdd');
+    	$("#swiperDateNav div.swiper-slide").each(function(){
+    		let date = $(this).find("a").data("date");
+    		if(currentDate == date) {
+    		    me.selectedBrcType = type;   // 선택한 방송 유형 저장
+    		    $("#tsMainTabs li").find("a").removeClass("active");
+    		    if(type == "MLC") {
+    		    	$('#tsMainTabs li[gbn="MLC"]').find("a").addClass("active");
+    		    	$("body").removeClass("ts-tv");
+    		    	$("body").addClass("ts-gylive");
+    		    } else {
+                    $('#tsMainTabs li[gbn="TV"]').find("a").addClass("active");
+                    $("body").removeClass("ts-gylive");
+                    $("body").addClass("ts-tv");
+    		    }
+    		    
+    		    $(this).find("a").trigger('click');
+    		    
+    		    return;
+    		}
+    	});
+    	
+    } 
+	
+	
+    /* ############################################################
+    ##### UI 관련 함수
+    ##### - UI 편성표 하단 편성표시간표 네비게이션, 상품리스트 위치활성화 스크립트
+    ##### - 화면 랜딩시 라이브 상품,시간표 위치 활성화
+    ##### - case: 편성된 상품이 없을 경우 라이브상품 활성화 스크립트 실행 안함
+    ############################################################ */
+    
+    /* ### 시간표 스크롤 이동 함수 */
+    , scrollToMove : function(idx, _duration) {
+    	console.log('scrollToMove');
+        var scrollTop = $(".dv-goodsIdx_" + (parseInt(idx)-1)).position().top;
+        var duration = (_duration === 'undefined')? 'smooth' : 'instant';
+        document.querySelector('#prdListScroll').scrollTo({top: scrollTop, behavior: duration});
+        UI.waFocus(".dv-goodsIdx_" + (parseInt(idx)-1)); // 접근성 개선
+        return false;
+    }
+    
+    /* ### 편성표 상품 위치 활성화 */
+    , prdListTo : function(id, _duration) {
+        var idSelector = '#' + id;
+        var scrollTop = $(idSelector).position().top;
+        console.log(idSelector+" top : "+scrollTop)
+        var duration = (_duration === 'undefined')? 'smooth' : 'instant';
+        document.querySelector('#prdListScroll').scrollTo({top: scrollTop, behavior: duration});
+    }
+    
+    /* ### 편성표 시간표 위치 활성화 */
+    , timeNavTo : function(id) {
+        var idSelector = '#' + id;
+        var slideIndex = $('#swiperTimeNav_' +  me.selectedStdDate).find('[href="' + idSelector +'"]').parent().data('index');
+        $('#swiperTimeNav_' +  me.selectedStdDate).find('.timenav-link').removeClass('active');
+        $('#swiperTimeNav_' +  me.selectedStdDate).find('.swiper-slide').eq(slideIndex).find('.timenav-link').addClass('active');
+        me.swiperTimeNav.slideTo(slideIndex);
+    }
+    
+    /* ### 상품영역 스크롤 이벤트 핸들러: 편성표(시간표 네비) 위치 활성화 */
+    , prdlistScrollHandler : function() {
+        
+        // 상품유닛 및 상품이미지 수동호출
+        goodsUnitTool.loadUnitInfo();
+        imageCdnMng.imgAct();
+        
+        var toId = $('#prdListScroll .active .time-box').eq(0).attr('id');
+        $('#prdListScroll .active .time-box').each(function() {
+            if($(this).position().top - $('#prdListScroll').scrollTop() < 10) {
+                toId = $(this).attr('id');
+            }
+        });
+        me.timeNavTo(toId);
+    }
+    
+    , isEmpty: function(v){ return (typeof(v)=='undefined' || v == '' || v == null)? true : false; }
+}})();
+
+$(document).ready(function(){
+    
+    // 페이지 로드시 최초 실행
+    scheduleMainMgr.init();
+    
+    // 상품 목록 영역 스크롤 감지 함수
+    $('#prdListScroll').on('scroll', function() {
+        scheduleMainMgr.prdlistScrollHandler();
+    });
+    
+    // 검색어 엔터키 입력
+    $("#scheduleSearchKwd").on("keyup", function(key){
+        if(key.keyCode == 13) {
+            scheduleMainMgr.goScheduleSearch();
+        }
+    });
+    
+    // 편성표 화면일 경우 BNB 편성표 리스트 스크롤 이벤트 추가
+    Tabbar.addElScrollEvent('#prdListScroll');
+    
+});
+
+// tab 구분자 반환 :: ds log
+function fn_tabGnbLog(){
+    return ( $('#tsMainTabs > li[gbn="TV"] > a.active').length == 1)? 'tv':'mlc';
+};
+
+
+// DS Log 
+function fnTvSchedule_DsLog(dateNum_, dayDate_){
+	setTimeout(function(){
+		dsLogTool.log('tvschedule_'+fn_tabGnbLog()+dateNum_, '편성표_'+fn_tabGnbLog()+dayDate_, '/tvshopping/tvSchedule_'+fn_tabGnbLog()+dayDate_, true);	
+	}, 200);
+	
+}
+
+</script>
