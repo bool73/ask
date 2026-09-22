@@ -755,17 +755,26 @@
                 
                 console.log("==> "+liveTimeBoxId);
                 console.log("==> "+me.obzScheduleId);
-                
+                let focusBool = false;
                 if(liveTimeBoxId == "" || typeof liveTimeBoxId == "undefined") {
                     console.log("마지막 "+me.selectedStdDate);
                     scheduleMainMgr.searchDateScheduleProc("20260922");
-                    return;
+					return;
                     
                 }else if (me.obzScheduleId == liveTimeBoxId ){    // 옴부즈 방송일 때
                     
                     liveTimeBoxId = $("#" + me.scheduleApplyId + " div.prdthumb-header.tv-next").eq(1).closest("div.time-box").attr("id");
                     console.log(" 옴부즈~~"+liveTimeBoxId)
-                }
+						focusBool = true;
+                }else{
+					focusBool = true;
+				}
+
+				if( focusBool ){
+					const url = new URL(window.location.href);
+					url.searchParams.delete('nextBcastFocusYn');
+					window.history.replaceState({}, document.title, url);
+				}
             }
             
             if(pu_serverProfilesType != 'stg' && pu_serverProfilesType != 'oper'){		// 운영이 아닌 경우만 동작
