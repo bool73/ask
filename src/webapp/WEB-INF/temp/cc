@@ -760,12 +760,12 @@
                 if(liveTimeBoxId == "" || typeof liveTimeBoxId == "undefined") {
                     console.log("마지막 "+me.selectedStdDate);
 					let dt1 = new Date(dateTool.getCurrentDate('yyyy-MM-dd'));
-					let dt2 = new Date(dateTool.getDateFormFormat(me.selectedStdDate, 'yyyyMMdd'));					
+					let dt2 = new Date(dateTool.getDateFromFormat(me.selectedStdDate, 'yyyyMMdd'));					
 					let diffDays = Math.floor(Math.abs(dt1.getTime() - dt2.getTime()) / (1000 * 60 *60 *24));
 
 					if( diffDays < 2 ){
 						focusBool = false;
-						let nextDateStr = moment(me.selectedStdDate, 'YYYYMMDD").add(1, 'days').format("YYYYMMDD");
+						let nextDateStr = moment(me.selectedStdDate, 'YYYYMMDD').add(1, 'days').format("YYYYMMDD");
 						$('#swiperDateNav .swiper-slide > a[data-date="'+nextDateStr +'"]').trigger('click');
 						return;	
 					}
