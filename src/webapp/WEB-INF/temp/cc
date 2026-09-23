@@ -753,10 +753,10 @@
 					let targetData = me.currentScheduleList.find(item => item.brcPgmSchdgId == targetId);
 					if( targetData && targetData.obzYn =='Y'){
 						liveTimeBoxId = $("#" + me.scheduleApplyId + " div.prdthumb-header.tv-next").eq(1).closest("div.time-box").attr("id");
-						focusBool = true;
 					}
 				}
-				
+
+				// 다음방송이 없을 때(라이브 또는 옴부즈가 마지막 방송인 경우, 다음날짜)
                 if(liveTimeBoxId == "" || typeof liveTimeBoxId == "undefined") {
                     console.log("마지막 "+me.selectedStdDate);
 					let dt1 = new Date(dateTool.getCurrentDate('yyyy-MM-dd'));
@@ -764,7 +764,6 @@
 					let diffDays = Math.floor(Math.abs(dt1.getTime() - dt2.getTime()) / (1000 * 60 *60 *24));
 
 					if( diffDays < 2 ){
-						focusBool = false;
 						let nextDateStr = moment(me.selectedStdDate, 'YYYYMMDD').add(1, 'days').format("YYYYMMDD");
 						$('#swiperDateNav .swiper-slide > a[data-date="'+nextDateStr +'"]').trigger('click');
 						return;	
@@ -772,13 +771,10 @@
                     console.log("여기까지는 오면 안됨~~");
                     
                 }else{
-					focusBool = true;
-				}
-
-				if( focusBool ){
+					// 다음방송이 정상일 때 
 					const url = new URL(window.location.href);
 					url.searchParams.delete('nextBcastFocusYn');
-					window.history.replaceState({}, document.title, url);
+					window.history.replaceState({}, document.title, url);					
 				}
             }
             
