@@ -197,7 +197,7 @@
     ,scheduleId : null
     ,CACHE_KEY : "CACHE_DATA"
     ,isSupportBFcache : false
-    ,obzScheduleId : "" // jmh 추가
+    ,currentScheduleList : [] 
     /* ############################################################
     ##### 기본함수
     ############################################################ */
@@ -559,6 +559,9 @@
                     prdIdList.push(obj);
                 })
 
+		// 현재날짜 편성표 저장
+		me.currentScheduleList = scheduleListMap;
+		
                 // 편성표 상품유닛 적용
                 goodsUnitTool.clearPrdList(me.scheduleApplyId);
                 goodsUnitTool.setOptions(me.scheduleApplyId, {"includeBrdCstTgtPrd" : false, "isSlStsCd130" : true});
@@ -710,17 +713,7 @@
      	}
 		
 		if(me.selectedBrcType == "TV") {
-			// jmh 추가
-			let queryString = window.location.search,
-            urlParams = new URLSearchParams(queryString);
-            
-            // jmh 추가 테스트용
-            if( "1" != urlParams.get("cnt")){
-                let url = "https://rlm.gongyoungshop.kr:9443/main.do?idx=9&nextBcastFocusYn=Y&cnt=1";
-                history.replaceState(null, '', url);    
-            }
-                
-			
+						
             // 영역 활성화
             $("#" + me.scheduleApplyId).addClass("active");
             $("#" + me.scheduleApplyId).show();
@@ -743,24 +736,41 @@
                 liveTimeBoxId = $("#" + me.scheduleApplyId + " div.prdthumb-header.tv-next:first").closest("div.time-box").attr("id");
                 console.log("liv2 : "+liveTimeBoxId);
             }
-            
-            // jmh 추가
+
+			// QR 코드로 유입. nextBcastFocusYn =Y인 경우 다음방송으로 포커싱
+			let queryString = window.location.search,
+            urlParams = new URLSearchParams(queryString);            
             if( "Y" == urlParams.get("nextBcastFocusYn")){
                  
                 // 다음 방송 
                 liveTimeBoxId = $("#" + me.scheduleApplyId + " div.prdthumb-header.tv-next:first").closest("div.time-box").attr("id");
                 
                 let focusBool = false;
+
+				// 옴부즈방송확인
+				if( liveTimeBoxId && me.currentScheduleList){
+					let targetId = liveTimeBoxId.replace("schedulePrd_", "");
+					let targetData = me.currentScheduleList.find(item => item.brcPgmSchdgId == targetId);
+					if( targetData && targetData.obzYn =='Y'){
+						liveTimeBoxId = $("#" + me.scheduleApplyId + " div.prdthumb-header.tv-next").eq(1).closest("div.time-box").attr("id");
+						focusBool = true;
+					}
+				}
+				
                 if(liveTimeBoxId == "" || typeof liveTimeBoxId == "undefined") {
                     console.log("마지막 "+me.selectedStdDate);
-                    $('#swiperDateNav .swiper-slide > a[data-date="20260923"]').trigger('click');
-					return;
+					let dt1 = new Date(dateTool.getCurrentDate('yyyy-MM-dd'));
+					let dt2 = new Date(dateTool.getDateFormFormat(me.selectedStdDate, 'yyyyMMdd'));					
+					let diffDays = Math.floor(Math.abs(dt1.getTime() - dt2.getTime()) / (1000 * 60 *60 *24));
+
+					if( diffDays < 2 ){
+						focusBool = false;
+						let nextDateStr = moment(me.selectedStdDate, 'YYYYMMDD").add(1, 'days').format("YYYYMMDD");
+						$('#swiperDateNav .swiper-slide > a[data-date="'+nextDateStr +'"]').trigger('click');
+						return;	
+					}
+                    console.log("여기까지는 오면 안됨~~");
                     
-                }else if (me.obzScheduleId == liveTimeBoxId ){    // 옴부즈 방송일 때
-                    
-                    liveTimeBoxId = $("#" + me.scheduleApplyId + " div.prdthumb-header.tv-next").eq(1).closest("div.time-box").attr("id");
-                    console.log(" 옴부즈~~"+liveTimeBoxId)
-						focusBool = true;
                 }else{
 					focusBool = true;
 				}
