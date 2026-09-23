@@ -745,9 +745,7 @@
                 // 다음 방송 
                 liveTimeBoxId = $("#" + me.scheduleApplyId + " div.prdthumb-header.tv-next:first").closest("div.time-box").attr("id");
                 
-                let focusBool = false;
-
-				// 옴부즈방송확인
+                // 옴부즈방송확인
 				if( liveTimeBoxId && me.currentScheduleList){
 					let targetId = liveTimeBoxId.replace("schedulePrd_", "");
 					let targetData = me.currentScheduleList.find(item => item.brcPgmSchdgId == targetId);
@@ -771,7 +769,7 @@
                     console.log("여기까지는 오면 안됨~~");
                     
                 }else{
-					// 다음방송이 정상일 때 
+					// 다음방송 정보가 정상일 때 
 					const url = new URL(window.location.href);
 					url.searchParams.delete('nextBcastFocusYn');
 					window.history.replaceState({}, document.title, url);					
